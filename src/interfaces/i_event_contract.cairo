@@ -22,7 +22,7 @@ pub trait IEventContract<TContractState> {
     fn get_event(self: @TContractState, _event_id: u32) -> Events;
     fn get_event_count(self: @TContractState) -> u32;
     // fn resale_ticket (ref self : TContractState, event_id: u32) -> bool;
-    // fn refund_ticket (ref self : TContractState, event_id: u32) -> bool;
+// fn refund_ticket (ref self : TContractState, event_id: u32) -> bool;
 }
 
 #[derive(Drop, Serde, starknet::Store)]

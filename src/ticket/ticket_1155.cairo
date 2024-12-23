@@ -27,15 +27,18 @@ pub mod Ticket1155 {
     #[abi(embed_v0)]
     impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
     #[abi(embed_v0)]
-    impl AccessControlImpl = AccessControlComponent::AccessControlImpl<ContractState>;
+    impl AccessControlImpl =
+        AccessControlComponent::AccessControlImpl<ContractState>;
     #[abi(embed_v0)]
-    impl AccessControlCamelImpl = AccessControlComponent::AccessControlCamelImpl<ContractState>;
+    impl AccessControlCamelImpl =
+        AccessControlComponent::AccessControlCamelImpl<ContractState>;
     #[abi(embed_v0)]
     impl ERC2981Impl = ERC2981Component::ERC2981Impl<ContractState>;
     // #[abi(embed_v0)]
     // impl ERC2981InfoImpl = ERC2981Component::ERC2981InfoImpl<ContractState>;
     // #[abi(embed_v0)]
-    // impl ERC2981AdminAccessControlImpl = ERC2981Component::ERC2981AdminAccessControlImpl<ContractState>;
+    // impl ERC2981AdminAccessControlImpl =
+    // ERC2981Component::ERC2981AdminAccessControlImpl<ContractState>;
 
     // Internal
     impl ERC1155InternalImpl = ERC1155Component::InternalImpl<ContractState>;
@@ -105,7 +108,7 @@ pub mod Ticket1155 {
             contract_state.pausable.assert_not_paused();
         }
     }
-    
+
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
