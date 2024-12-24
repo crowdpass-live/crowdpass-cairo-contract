@@ -27,9 +27,9 @@ pub mod TicketFactory {
     //*//////////////////////////////////////////////////////////////////////////
     //                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*//
-    #[embeddable_as(Tickets)]
-    impl TicketFactoryImpl<
-        TContractState, +HasComponent<TContractState>, +Drop<TContractState>
+    #[embeddable_as(TicketImpl)]
+    impl Ticket<
+        TContractState, +HasComponent<TContractState>,
     > of ITicketFactory<ComponentState<TContractState>> {
         fn deploy_ticket(
             ref self: ComponentState<TContractState>,

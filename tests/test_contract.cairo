@@ -1,6 +1,6 @@
-// use starknet::ContractAddress;
+use starknet::ContractAddress;
 
-// use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
+use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
 
 // use crowd_pass_v2::IHelloStarknetSafeDispatcher;
 // use crowd_pass_v2::IHelloStarknetSafeDispatcherTrait;
