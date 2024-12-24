@@ -25,7 +25,9 @@ mod Ticket721 {
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: PausableComponent, storage: pausable, event: PausableEvent);
     component!(path: AccessControlComponent, storage: accesscontrol, event: AccessControlEvent);
-    component!(path: ERC721EnumerableComponent, storage: erc721_enumerable, event: ERC721EnumerableEvent);
+    component!(
+        path: ERC721EnumerableComponent, storage: erc721_enumerable, event: ERC721EnumerableEvent
+    );
     component!(path: ERC2981Component, storage: erc2981, event: ERC2981Event);
 
     // External
@@ -34,17 +36,21 @@ mod Ticket721 {
     #[abi(embed_v0)]
     impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
     #[abi(embed_v0)]
-    impl AccessControlImpl = AccessControlComponent::AccessControlImpl<ContractState>;
+    impl AccessControlImpl =
+        AccessControlComponent::AccessControlImpl<ContractState>;
     #[abi(embed_v0)]
-    impl AccessControlCamelImpl = AccessControlComponent::AccessControlCamelImpl<ContractState>;
+    impl AccessControlCamelImpl =
+        AccessControlComponent::AccessControlCamelImpl<ContractState>;
     #[abi(embed_v0)]
-    impl ERC721EnumerableImpl = ERC721EnumerableComponent::ERC721EnumerableImpl<ContractState>;
+    impl ERC721EnumerableImpl =
+        ERC721EnumerableComponent::ERC721EnumerableImpl<ContractState>;
     #[abi(embed_v0)]
     impl ERC2981Impl = ERC2981Component::ERC2981Impl<ContractState>;
     // #[abi(embed_v0)]
     // impl ERC2981InfoImpl = ERC2981Component::ERC2981InfoImpl<ContractState>;
     // #[abi(embed_v0)]
-    // impl ERC2981AdminAccessControlImpl = ERC2981Component::ERC2981AdminAccessControlImpl<ContractState>;
+    // impl ERC2981AdminAccessControlImpl =
+    // ERC2981Component::ERC2981AdminAccessControlImpl<ContractState>;
 
     // Internal
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
@@ -165,10 +171,7 @@ mod Ticket721 {
 
         #[external(v0)]
         fn safeMint(
-            ref self: ContractState,
-            recipient: ContractAddress,
-            tokenId: u256,
-            data: Span<felt252>,
+            ref self: ContractState, recipient: ContractAddress, tokenId: u256, data: Span<felt252>,
         ) {
             self.safe_mint(recipient, tokenId, data);
         }
