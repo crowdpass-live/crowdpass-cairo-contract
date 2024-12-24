@@ -1,22 +1,20 @@
 // SPDX-License-Identifier: MIT
 
 // CLASS_HASH: 0x05ae886b92b49fadf3445f638e91ccadd39dffaa7c29dd1c641f130a23468473
-const PAUSER_ROLE: felt252 = selector!("PAUSER_ROLE");
-const MINTER_ROLE: felt252 = selector!("MINTER_ROLE");
-
 #[starknet::contract]
 mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
-    use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::security::pausable::PausableComponent;
-    use openzeppelin::token::common::erc2981::{DefaultConfig, ERC2981Component};
-    use openzeppelin::token::erc721::ERC721Component;
-    use openzeppelin::token::erc721::extensions::ERC721EnumerableComponent;
     use starknet::ContractAddress;
-    use super::{MINTER_ROLE, PAUSER_ROLE};
+    use openzeppelin::{
+        access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
+        introspection::src5::SRC5Component, security::pausable::PausableComponent,
+        token::{
+            common::erc2981::{DefaultConfig, ERC2981Component},
+            erc721::{ERC721Component, extensions::ERC721EnumerableComponent}
+        },
+    };
 
     //*//////////////////////////////////////////////////////////////////////////
     //                                COMPONENTS
@@ -104,14 +102,11 @@ mod Ticket721 {
     #[constructor]
     fn constructor(
         ref self: ContractState,
-        default_admin: ContractAddress,
-        pauser: ContractAddress,
-        minter: ContractAddress,
-        default_royalty_receiver: ContractAddress,
-        royalty_admin: ContractAddress,
         name: ByteArray,
         symbol: ByteArray,
         uri: ByteArray,
+        default_admin: ContractAddress,
+        default_royalty_receiver: ContractAddress,
     ) {
         self.erc721.initializer(name, symbol, uri);
         self.accesscontrol.initializer();
@@ -119,8 +114,6 @@ mod Ticket721 {
         self.erc2981.initializer(default_royalty_receiver, 500);
 
         self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin);
-        self.accesscontrol._grant_role(PAUSER_ROLE, pauser);
-        self.accesscontrol._grant_role(MINTER_ROLE, minter);
         // self.accesscontrol._grant_role(ERC2981Component::ROYALTY_ADMIN_ROLE, royalty_admin);
     }
 
@@ -140,6 +133,14 @@ mod Ticket721 {
         }
     }
 
+    // impl ERC721MetadataImp of ERC721Component::ERC721MetadataImpl<ContractState> {
+    //     fn token_uri(ref self: ContractState, token_id: u256) -> ByteArray {
+    //         self.erc721._require_owned(token_id);
+    //         let base_uri = self.erc721._base_uri();
+    //         base_uri
+    //     }
+    // }
+
     //*//////////////////////////////////////////////////////////////////////////
     //                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*//
@@ -148,13 +149,13 @@ mod Ticket721 {
     impl ExternalImpl of ExternalTrait {
         #[external(v0)]
         fn pause(ref self: ContractState) {
-            self.accesscontrol.assert_only_role(PAUSER_ROLE);
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
             self.pausable.pause();
         }
 
         #[external(v0)]
         fn unpause(ref self: ContractState) {
-            self.accesscontrol.assert_only_role(PAUSER_ROLE);
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
             self.pausable.unpause();
         }
 
@@ -165,15 +166,20 @@ mod Ticket721 {
             token_id: u256,
             data: Span<felt252>,
         ) {
-            self.accesscontrol.assert_only_role(MINTER_ROLE);
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
             self.erc721.safe_mint(recipient, token_id, data);
         }
 
         #[external(v0)]
-        fn safeMint(
-            ref self: ContractState, recipient: ContractAddress, tokenId: u256, data: Span<felt252>,
-        ) {
-            self.safe_mint(recipient, tokenId, data);
+        fn set_base_uri(ref self: ContractState, base_uri: ByteArray) {
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
+            self.erc721._set_base_uri(base_uri);
         }
+        // #[external(v0)]
+    // fn token_uri(ref self: ContractState, token_id: u256) -> ByteArray {
+    //     self.erc721._require_owned(token_id);
+    //     let base_uri = self.erc721._base_uri();
+    //     base_uri
+    // }
     }
 }

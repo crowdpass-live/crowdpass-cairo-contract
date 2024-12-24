@@ -1,4 +1,4 @@
-name: Build crowd_pass
+name: Build Crowdpass
 
 on: [push, pull_request]
 
