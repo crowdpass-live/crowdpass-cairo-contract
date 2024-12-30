@@ -20,6 +20,9 @@ sierra = true
 [scripts]
 test = "snforge test"
 
+[tool.voyager]
+ticket_721 = { path = "ticket/ticket_721.cairo", address = "0x038ac0660e4ce209a8d71527ef92103de48801cbe5ce0c97fb7e262f961e510a" }
+
 # Visit https://foundry-rs.github.io/starknet-foundry/appendix/scarb-toml.html for more information
 
 # [tool.snforge]                                             # Define `snforge` tool section

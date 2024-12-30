@@ -1,3 +1,4 @@
 pub mod errors;
 pub mod interfaces;
-pub mod ticket;
+pub mod tickets;
+pub mod event_factory;

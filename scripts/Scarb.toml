@@ -1,0 +1,19 @@
+[package]
+name = "script"
+version = "0.1.0"
+edition = "2024_07"
+
+# See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
+
+[dependencies]
+sncast_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.34.0" }
+starknet = ">=2.8.2"
+crowd_pass = { path = "../../crowd_pass_v2" }
+
+[dev-dependencies]
+cairo_test = "2.8.2"
+
+[[target.starknet-contract]]
+build-external-contracts = [
+    "crowd_pass::ticket::ticket_721::Ticket721"
+]
