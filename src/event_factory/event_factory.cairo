@@ -4,18 +4,15 @@ pub mod EventFactory {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use core::num::traits::zero::Zero;
+    use core::{num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait,};
     use starknet::{
         ContractAddress, SyscallResultTrait, get_block_timestamp, get_caller_address,
         get_contract_address, class_hash::ClassHash, account::Call,
         syscalls::{deploy_syscall, call_contract_syscall},
-        storage::{
-            Map, StoragePointerReadAccess, StoragePointerWriteAccess, StorageMapReadAccess,
-            StorageMapWriteAccess, StoragePathEntry,
-        },
+        storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry,},
     };
     use token_bound_accounts::{
-        interfaces::IAccountV3::{IAccountV3LibraryDispatcher, IAccountV3DispatcherTrait},
+        interfaces::{IRegistry::{IRegistryLibraryDispatcher, IRegistryDispatcherTrait}},
         utils::array_ext::ArrayExt,
     };
     use openzeppelin::{
@@ -61,12 +58,16 @@ pub mod EventFactory {
 
     #[derive(Drop, starknet::Event)]
     struct EventCreated {
+        #[key]
         id: u256,
-        organizer: ContractAddress
+        #[key]
+        organizer: ContractAddress,
+        ticket_address: ContractAddress
     }
 
     #[derive(Drop, starknet::Event)]
     struct EventUpdated {
+        #[key]
         id: u256,
         start_date: u64,
         end_date: u64
@@ -74,18 +75,22 @@ pub mod EventFactory {
 
     #[derive(Drop, starknet::Event)]
     struct EventCanceled {
+        #[key]
         id: u256,
     }
 
     #[derive(Drop, starknet::Event)]
     struct TicketPurchased {
+        #[key]
         event_id: u256,
+        #[key]
         buyer: ContractAddress,
         amount: u256
     }
 
     #[derive(Drop, starknet::Event)]
     struct TicketRecliamed {
+        #[key]
         event_id: u256,
         tba_acct: ContractAddress,
         amount: u256
@@ -98,11 +103,12 @@ pub mod EventFactory {
     struct Storage {
         event_count: u256,
         events: Map<u256, EventData>,
-        user_event_token_id: Map<u256, Map<ContractAddress, u256>>,
+        event_array: Array<EventData>,
+        event_ticket_count: Map<u256, u256>,
         strk_token_address: ContractAddress,
-        ticket_721_class_hash: ClassHash,
-        tba_registry_address: ContractAddress,
-        tba_accountv3_class_hash: ClassHash,
+        ticket_721_class_hash: felt252,
+        tba_registry_class_hash: felt252,
+        tba_accountv3_class_hash: felt252,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
         #[substorage(v0)]
@@ -117,14 +123,17 @@ pub mod EventFactory {
     #[constructor]
     fn constructor(
         ref self: ContractState,
+        default_admin: ContractAddress,
         strk_token_address: ContractAddress,
-        ticket_721_class_hash: ClassHash,
-        tba_registry_address: ContractAddress,
-        tba_accountv3_class_hash: ClassHash,
+        ticket_721_class_hash: felt252,
+        tba_registry_class_hash: felt252,
+        tba_accountv3_class_hash: felt252,
     ) {
+        self.accesscontrol.initializer();
+        self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin);
         self.strk_token_address.write(strk_token_address);
         self.ticket_721_class_hash.write(ticket_721_class_hash);
-        self.tba_registry_address.write(tba_registry_address);
+        self.tba_registry_class_hash.write(tba_registry_class_hash);
         self.tba_accountv3_class_hash.write(tba_accountv3_class_hash);
     }
 
@@ -141,8 +150,6 @@ pub mod EventFactory {
             uri: ByteArray,
             description: ByteArray,
             location: ByteArray,
-            category: felt252,
-            event_type: felt252,
             start_date: u64,
             end_date: u64,
             total_tickets: u256,
@@ -155,10 +162,18 @@ pub mod EventFactory {
             // assert not zero ContractAddress
             assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
 
+            let event_admin = PedersenTrait::new(0)
+                .update('CROWD PASS EVENT')
+                .update(event_count.try_into().unwrap())
+                .finalize();
+            self.accesscontrol._grant_role(event_admin, caller);
+
+            // let event_ticket_addr = self.deploy_ticket(address_this, address_this, ''.into());
+
             // deploy ticket721 contract
             let event_ticket = deploy_syscall(
-                self.ticket_721_class_hash.read(),
-                0,
+                self.ticket_721_class_hash.read().try_into().unwrap(),
+                ''.into(),
                 array![address_this.into(), address_this.into()].span(),
                 true,
             );
@@ -166,9 +181,8 @@ pub mod EventFactory {
             let (event_ticket_addr, _) = event_ticket.unwrap_syscall();
 
             // initialize ticket721 contract
-            let ticket721_contract = ITicket721Dispatcher { contract_address: event_ticket_addr };
-
-            ticket721_contract.initialize(name, symbol, uri,);
+            ITicket721Dispatcher { contract_address: event_ticket_addr }
+                .initialize(name, symbol, uri,);
 
             // new event struct instance
             let event_instance = EventData {
@@ -181,7 +195,6 @@ pub mod EventFactory {
                 updated_at: 0,
                 start_date: start_date,
                 end_date: end_date,
-                category: category,
                 total_tickets: total_tickets,
                 tickets_sold: 0,
                 ticket_price: ticket_price,
@@ -191,11 +204,19 @@ pub mod EventFactory {
             // Map event_id to new_event
             self.events.entry(event_count).write(event_instance);
 
+            // Append event to event_array
+            // self.event_array.append(event_instance);
+
             // Update event count
             self.event_count.write(event_count);
 
             // emit event for event creation
-            self.emit(EventCreated { id: event_count, organizer: caller });
+            self
+                .emit(
+                    EventCreated {
+                        id: event_count, organizer: caller, ticket_address: event_ticket_addr
+                    }
+                );
 
             true
         }
@@ -208,8 +229,6 @@ pub mod EventFactory {
             uri: ByteArray,
             description: ByteArray,
             location: ByteArray,
-            category: felt252,
-            event_type: felt252,
             start_date: u64,
             end_date: u64,
             total_tickets: u256,
@@ -264,7 +283,7 @@ pub mod EventFactory {
             true
         }
 
-        fn purchase_ticket(ref self: ContractState, event_id: u256) {
+        fn purchase_ticket(ref self: ContractState, event_id: u256) -> bool {
             let caller: ContractAddress = get_caller_address();
             let event_count: u256 = self.event_count.read();
             let address_this: ContractAddress = get_contract_address();
@@ -275,11 +294,11 @@ pub mod EventFactory {
 
             let strk_erc20_contract = IERC20Dispatcher { contract_address: strk_erc20_address };
 
-            // assert caler is nit addr 0
+            // assert caller is not addr 0
             assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
 
             // assert is_valid event
-            assert(event_id < event_count, Errors::NOT_CREATED);
+            assert(event_id <= event_count, Errors::NOT_CREATED);
 
             // verify if token caller has enough strk for the ticket_price
             assert(
@@ -289,22 +308,20 @@ pub mod EventFactory {
 
             let event_ticket_price: u256 = event_instance.ticket_price;
 
+            // Approve STRK token to this contract
             let approve_calldata_array: Array<felt252> = array![
                 address_this.into(), event_ticket_price.try_into().unwrap()
             ];
-
-            // Approve STRK token to this contract
             let approve_call = Call {
                 to: strk_erc20_address,
                 selector: selector!("approve"), //strk_erc20_contract.approve().selector,
                 calldata: approve_calldata_array.span(),
             };
 
+            // Transfer STRK from caller to this contract
             let transfer_calldata_array: Array<felt252> = array![
                 caller.into(), address_this.into(), event_ticket_price.try_into().unwrap()
             ];
-
-            // Transfer STRK from caller to this contract
             let transfer_call = Call {
                 to: strk_erc20_address,
                 selector: selector!("transfer_from"), //strk_erc20_contract.transfer_from.selector,
@@ -345,31 +362,28 @@ pub mod EventFactory {
             let ticket_nft = ITicket721Dispatcher { contract_address: event_ticket_address };
             ticket_nft.safe_mint(caller);
 
-            // deploy the ticket721 tokenbound account
-            // let tba_account = IAccountV3LibraryDispatcher {
-            //     class_hash: self.tba_accountv3_class_hash.read()
-            // };
-
-            let tba_constructor_calldata: Array<felt252> = array![
-                event_ticket_address.into(),
-                event_id.try_into().unwrap(),
-                self.tba_registry_address.read().into(),
-                self.tba_accountv3_class_hash.read().into(),
-                event_id.try_into().unwrap(),
-            ];
-
-            let tba_account = deploy_syscall(
-                self.tba_accountv3_class_hash.read(), 0, tba_constructor_calldata.span(), true,
-            );
-
             // update tickets sold
             let tickets_sold = event_instance.tickets_sold + 1;
             event_instance.tickets_sold = tickets_sold;
 
-            // update legacymap with user token_id
-            self.user_event_token_id.entry(event_id).entry(caller).write(tickets_sold);
+            // let tba_constructor_calldata: Array<felt252> = array![
+            //     event_ticket_address.into(),
+            //     event_id.try_into().unwrap(),
+            //     self.tba_registry_.read().into(),
+            //     self.tba_accountv3_class_hash.read().into(),
+            //     event_id.try_into().unwrap(),
+            // ];
 
-            // event_instance.tickets_sold = tickets_sold;
+            IRegistryLibraryDispatcher {
+                class_hash: self.tba_registry_class_hash.read().try_into().unwrap()
+            }
+                .create_account(
+                    self.tba_accountv3_class_hash.read().try_into().unwrap(),
+                    event_ticket_address,
+                    tickets_sold,
+                    tickets_sold.try_into().unwrap(),
+                    ''.into()
+                );
 
             // increase ticket_sold count from event instance
             self.events.entry(event_id).write(event_instance);
@@ -381,6 +395,8 @@ pub mod EventFactory {
                         event_id: event_id, buyer: caller, amount: event_ticket_price
                     }
                 );
+
+            true
         }
 
         // -------------- GETTER FUNCTIONS -----------------------
