@@ -1,7 +1,12 @@
 [package]
 name = "crowd_pass"
+description = "A ticketing platform for Starknet"
 version = "0.2.0"
 edition = "2024_07"
+authors = ["Manoah Luka <[manoahluka@gmail.com]>, David Dada <[daveproxy80@gmail.com]>"]
+homepage = "https://www.crowdpass.live/"
+cairo_version = "2.8.2"
+keywords = ["crowdpass", "event", "cairo", "contracts", "starknet", "standards"]
 
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
 
@@ -16,12 +21,18 @@ assert_macros = "2.8.2"
 
 [[target.starknet-contract]]
 sierra = true
+casm = true
 
 [scripts]
 test = "snforge test"
 
 [tool.voyager]
 ticket_721 = { path = "ticket/ticket_721.cairo", address = "0x038ac0660e4ce209a8d71527ef92103de48801cbe5ce0c97fb7e262f961e510a" }
+
+[[tool.snforge.fork]]
+name = "SEPOLIA_LATEST"
+url = "https://starknet-sepolia.public.blastapi.io/rpc/v0_7"
+block_id.tag = "latest"
 
 # Visit https://foundry-rs.github.io/starknet-foundry/appendix/scarb-toml.html for more information
 
