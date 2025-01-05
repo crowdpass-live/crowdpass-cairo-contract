@@ -49,7 +49,6 @@ pub struct EventData {
     pub start_date: u64,
     pub end_date: u64,
     pub total_tickets: u256,
-    pub tickets_sold: u256,
     pub ticket_price: u256,
     pub is_canceled: bool,
 }

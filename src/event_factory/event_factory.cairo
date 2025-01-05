@@ -6,14 +6,9 @@ pub mod EventFactory {
     //////////////////////////////////////////////////////////////////////////*//
     use core::{num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait,};
     use starknet::{
-        ContractAddress, SyscallResultTrait, get_block_timestamp, get_caller_address,
-        get_contract_address, class_hash::ClassHash, account::Call,
-        syscalls::{deploy_syscall, call_contract_syscall},
+        ContractAddress, SyscallResultTrait, class_hash::ClassHash, get_block_timestamp,
+        get_caller_address, get_contract_address, syscalls::deploy_syscall,
         storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry,},
-    };
-    use token_bound_accounts::{
-        interfaces::{IRegistry::{IRegistryLibraryDispatcher, IRegistryDispatcherTrait}},
-        utils::array_ext::ArrayExt,
     };
     use openzeppelin::{
         introspection::src5::SRC5Component,
@@ -21,12 +16,15 @@ pub mod EventFactory {
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
+    use token_bound_accounts::{
+        interfaces::{IRegistry::{IRegistryLibraryDispatcher, IRegistryDispatcherTrait}},
+        utils::array_ext::ArrayExt,
+    };
     use crowd_pass::{
         errors::Errors,
         interfaces::{
             i_event_factory::{EventData, IEventFactory},
             i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait},
-            // i_multicall::IMultiCall,
         },
     };
 
@@ -104,8 +102,8 @@ pub mod EventFactory {
         event_count: u256,
         events: Map<u256, EventData>,
         event_array: Array<EventData>,
-        event_ticket_count: Map<u256, u256>,
-        strk_token_address: ContractAddress,
+        event_ticket_balance: Map<u256, u256>,
+        strk_token_address: felt252,
         ticket_721_class_hash: felt252,
         tba_registry_class_hash: felt252,
         tba_accountv3_class_hash: felt252,
@@ -123,14 +121,14 @@ pub mod EventFactory {
     #[constructor]
     fn constructor(
         ref self: ContractState,
-        default_admin: ContractAddress,
-        strk_token_address: ContractAddress,
+        default_admin: felt252,
+        strk_token_address: felt252,
         ticket_721_class_hash: felt252,
         tba_registry_class_hash: felt252,
         tba_accountv3_class_hash: felt252,
     ) {
         self.accesscontrol.initializer();
-        self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin);
+        self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin.try_into().unwrap());
         self.strk_token_address.write(strk_token_address);
         self.ticket_721_class_hash.write(ticket_721_class_hash);
         self.tba_registry_class_hash.write(tba_registry_class_hash);
@@ -162,18 +160,20 @@ pub mod EventFactory {
             // assert not zero ContractAddress
             assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
 
-            let event_admin = PedersenTrait::new(0)
-                .update('CROWD PASS EVENT')
+            // create event role
+            let event_hash = PedersenTrait::new(0)
+                .update('CROWD_PASS_EVENT')
                 .update(event_count.try_into().unwrap())
                 .finalize();
-            self.accesscontrol._grant_role(event_admin, caller);
+            // grant role to caller
+            self.accesscontrol._grant_role(event_hash, caller);
 
             // let event_ticket_addr = self.deploy_ticket(address_this, address_this, ''.into());
 
             // deploy ticket721 contract
             let event_ticket = deploy_syscall(
                 self.ticket_721_class_hash.read().try_into().unwrap(),
-                ''.into(),
+                event_hash,
                 array![address_this.into(), address_this.into()].span(),
                 true,
             );
@@ -196,7 +196,6 @@ pub mod EventFactory {
                 start_date: start_date,
                 end_date: end_date,
                 total_tickets: total_tickets,
-                tickets_sold: 0,
                 ticket_price: ticket_price,
                 is_canceled: false,
             };
@@ -235,14 +234,18 @@ pub mod EventFactory {
             ticket_price: u256,
         ) -> bool {
             let caller = get_caller_address();
-            let event_count = self.event_count.read();
+
+            let event_hash = PedersenTrait::new(0)
+                .update('CROWD_PASS_EVENT')
+                .update(event_id.try_into().unwrap())
+                .finalize();
+            // assert caller has role
+            self.accesscontrol.assert_only_role(event_hash);
+
             let mut event_instance = self.events.entry(event_id).read();
 
-            assert(event_id <= event_count, Errors::NOT_CREATED);
             // assert not zeroAddr caller
             assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
-            // assert caller is event organizer
-            assert(caller == event_instance.organizer, Errors::NOT_ORGANIZER);
             // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
 
@@ -266,11 +269,18 @@ pub mod EventFactory {
             let organizer = self.events.entry(event_id).read().organizer;
             let mut event_instance = self.events.entry(event_id).read();
 
-            assert(event_id <= event_count, Errors::NOT_CREATED);
+            let event_hash = PedersenTrait::new(0)
+                .update('CROWD_PASS_EVENT')
+                .update(event_id.try_into().unwrap())
+                .finalize();
+            // assert caller has role
+            self.accesscontrol.assert_only_role(event_hash);
+
+            assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
             // assert not zeroAddr caller
             assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
             // assert caller is event organizer
-            assert(caller == organizer, Errors::NOT_ORGANIZER);
+            assert(caller == organizer, Errors::NOT_EVENT_ORGANIZER);
             // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
 
@@ -292,13 +302,21 @@ pub mod EventFactory {
 
             let strk_erc20_address = self.strk_token_address.read();
 
-            let strk_erc20_contract = IERC20Dispatcher { contract_address: strk_erc20_address };
+            let strk_erc20_contract = IERC20Dispatcher {
+                contract_address: strk_erc20_address.try_into().unwrap()
+            };
 
             // assert caller is not addr 0
             assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
 
             // assert is_valid event
-            assert(event_id <= event_count, Errors::NOT_CREATED);
+            assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
+
+            assert(!event_instance.is_canceled, Errors::EVENT_CANCELED);
+
+            assert(event_instance.start_date < get_block_timestamp(), Errors::EVENT_NOT_STARTED);
+
+            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
 
             // verify if token caller has enough strk for the ticket_price
             assert(
@@ -306,73 +324,24 @@ pub mod EventFactory {
                 Errors::INSUFFICIENT_BALANCE
             );
 
-            let event_ticket_price: u256 = event_instance.ticket_price;
-
-            // Approve STRK token to this contract
-            let approve_calldata_array: Array<felt252> = array![
-                address_this.into(), event_ticket_price.try_into().unwrap()
-            ];
-            let approve_call = Call {
-                to: strk_erc20_address,
-                selector: selector!("approve"), //strk_erc20_contract.approve().selector,
-                calldata: approve_calldata_array.span(),
-            };
-
-            // Transfer STRK from caller to this contract
-            let transfer_calldata_array: Array<felt252> = array![
-                caller.into(), address_this.into(), event_ticket_price.try_into().unwrap()
-            ];
-            let transfer_call = Call {
-                to: strk_erc20_address,
-                selector: selector!("transfer_from"), //strk_erc20_contract.transfer_from.selector,
-                calldata: transfer_calldata_array.span(),
-            };
-
-            let calls = array![approve_call, transfer_call];
-
-            // execute multiple calls
-            let mut result: Array<Span<felt252>> = ArrayTrait::new();
-            let mut calls = calls;
-            let mut index = 0;
-
-            loop {
-                match calls.pop_front() {
-                    Option::Some(call) => {
-                        match call_contract_syscall(call.to, call.selector, call.calldata) {
-                            Result::Ok(mut retdata) => {
-                                result.append(retdata);
-                                index += 1;
-                            },
-                            Result::Err(err) => {
-                                let mut data = array!['multicall-failed', index];
-                                data.append_all(err.span());
-                                panic(data);
-                            }
-                        }
-                    },
-                    Option::None(_) => { break (); }
-                };
-            };
-
-            // transfer strk from callers address to  smart contract
-            // strk_erc20_contract.transfer_from(caller, address_this, event_ticket_price);
-
-            // mint the nft ticket to the user
             let event_ticket_address = event_instance.ticket_addr;
             let ticket_nft = ITicket721Dispatcher { contract_address: event_ticket_address };
+            let ticket_count = ticket_nft.total_supply();
+            assert(event_instance.total_tickets <= ticket_count, Errors::EVENT_SOLD_OUT);
+
+            let event_ticket_price = event_instance.ticket_price;
+
+            // transfer the ticket price to the contract
+            strk_erc20_contract.transfer_from(caller, address_this, event_ticket_price);
+
+            let current_ticket_balance = self.event_ticket_balance.entry(event_id).read();
+            self
+                .event_ticket_balance
+                .entry(event_id)
+                .write(current_ticket_balance + event_ticket_price);
+
+            // mint the nft ticket to the user
             ticket_nft.safe_mint(caller);
-
-            // update tickets sold
-            let tickets_sold = event_instance.tickets_sold + 1;
-            event_instance.tickets_sold = tickets_sold;
-
-            // let tba_constructor_calldata: Array<felt252> = array![
-            //     event_ticket_address.into(),
-            //     event_id.try_into().unwrap(),
-            //     self.tba_registry_.read().into(),
-            //     self.tba_accountv3_class_hash.read().into(),
-            //     event_id.try_into().unwrap(),
-            // ];
 
             IRegistryLibraryDispatcher {
                 class_hash: self.tba_registry_class_hash.read().try_into().unwrap()
@@ -380,13 +349,10 @@ pub mod EventFactory {
                 .create_account(
                     self.tba_accountv3_class_hash.read().try_into().unwrap(),
                     event_ticket_address,
-                    tickets_sold,
-                    tickets_sold.try_into().unwrap(),
+                    ticket_count,
+                    ticket_count.try_into().unwrap(),
                     ''.into()
                 );
-
-            // increase ticket_sold count from event instance
-            self.events.entry(event_id).write(event_instance);
 
             // emit event for ticket purchase
             self
