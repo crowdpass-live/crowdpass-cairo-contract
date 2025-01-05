@@ -5,17 +5,17 @@ pub mod Ticket721 {
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
     use starknet::{
-        ContractAddress, ClassHash, storage::{StoragePointerReadAccess, StoragePointerWriteAccess,}
+        ContractAddress, ClassHash, storage::{StoragePointerReadAccess, StoragePointerWriteAccess,},
     };
     use openzeppelin::{
-        access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
+        access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE,},
         introspection::src5::SRC5Component,
-        security::{pausable::PausableComponent, initializable::InitializableComponent},
+        security::{pausable::PausableComponent, initializable::InitializableComponent,},
         token::{
-            common::erc2981::{DefaultConfig, ERC2981Component},
-            erc721::{ERC721Component, extensions::ERC721EnumerableComponent}
+            common::erc2981::{DefaultConfig, ERC2981Component,},
+            erc721::{extensions::ERC721EnumerableComponent, ERC721Component,},
         },
-        upgrades::{interface::IUpgradeable, UpgradeableComponent},
+        upgrades::{interface::IUpgradeable, UpgradeableComponent,},
     };
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -54,6 +54,15 @@ pub mod Ticket721 {
         InitializableEvent: InitializableComponent::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
+        UriUpdated: UriUpdated,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct UriUpdated {
+        #[key]
+        old_uri: ByteArray,
+        #[key]
+        new_uri: ByteArray,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -136,7 +145,9 @@ pub mod Ticket721 {
         #[external(v0)]
         fn set_base_uri(ref self: ContractState, base_uri: ByteArray) {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
+            let old_uri = self.erc721._base_uri();
             self.erc721._set_base_uri(base_uri);
+            self.emit(UriUpdated { old_uri: old_uri, new_uri: self.erc721._base_uri(), });
         }
     }
 
@@ -151,27 +162,61 @@ pub mod Ticket721 {
         }
     }
 
-    // External Component Functions
+    //*//////////////////////////////////////////////////////////////////////////
+    //                             ERC721 MIXIN IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                               PAUSABLE IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                            ACCESS CONTROL IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl AccessControlImpl =
         AccessControlComponent::AccessControlImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                         ACCESS CONTROL CAMEL IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl AccessControlCamelImpl =
         AccessControlComponent::AccessControlCamelImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                           ERC721 ENUMERABLE IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl ERC721EnumerableImpl =
         ERC721EnumerableComponent::ERC721EnumerableImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                                ERC2981 IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl ERC2981Impl = ERC2981Component::ERC2981Impl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                             INITIALIZABLE IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl InitializableImpl =
         InitializableComponent::InitializableImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                             ERC2981 INFO IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     // #[abi(embed_v0)]
     // impl ERC2981InfoImpl = ERC2981Component::ERC2981InfoImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                     ERC2981 ADMIN ACCESS CONTROL IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     // #[abi(embed_v0)]
     // impl ERC2981AdminAccessControlImpl =
     // ERC2981Component::ERC2981AdminAccessControlImpl<ContractState>;
