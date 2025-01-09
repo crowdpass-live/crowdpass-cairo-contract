@@ -5,19 +5,7 @@ on: [push, pull_request]
 permissions: read-all
 
 jobs:
-  tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Step 1 - Check out main branch
-        uses: actions/checkout@v3
-      - name: Step 2 - Getting scarb
-        uses: software-mansion/setup-scarb@v1.3.2
-      - name: Step 3 - Setting up snfoundry
-        uses: foundry-rs/setup-snfoundry@v3
-      - name: Step 4 - Running tests
-        run: scarb test
-  
-  format:
+  format-build-test:
     runs-on: ubuntu-latest
     steps:
       - name: Step 1 - Check out main branch
@@ -26,3 +14,32 @@ jobs:
         uses: software-mansion/setup-scarb@v1.3.2
       - name: Step 3 - Checking format
         run: scarb fmt --check
+      - name: Step 4 - Building
+        run: scarb build
+      - name: Step 5 - Setting up snfoundry
+        uses: foundry-rs/setup-snfoundry@v3
+      - name: Step 6 - Running tests
+        run: snforge test
+
+  # build:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Step 1 - Check out main branch
+  #       uses: actions/checkout@v3
+  #     - name: Step 2 - Getting scarb
+  #       uses: software-mansion/setup-scarb@v1.3.2
+  #     - name: Step 3 - Building
+  #       run: scarb build
+
+  # tests:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Step 1 - Check out main branch
+  #       uses: actions/checkout@v3
+  #     - name: Step 2 - Getting scarb
+  #       uses: software-mansion/setup-scarb@v1.3.2
+  #     - name: Step 3 - Setting up snfoundry
+  #       uses: foundry-rs/setup-snfoundry@v3
+  #     - name: Step 4 - Running tests
+  #       run: scarb test
+  
