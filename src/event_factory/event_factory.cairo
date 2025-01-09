@@ -8,7 +8,7 @@ pub mod EventFactory {
     use starknet::{
         ContractAddress, SyscallResultTrait, class_hash::ClassHash, get_block_timestamp,
         get_caller_address, get_contract_address, syscalls::deploy_syscall,
-        storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry,},
+        storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry},
     };
     use openzeppelin::{
         introspection::src5::SRC5Component,
@@ -41,17 +41,17 @@ pub mod EventFactory {
     #[event]
     #[derive(Drop, starknet::Event)]
     enum Event {
-        EventCreated: EventCreated,
-        EventUpdated: EventUpdated,
-        EventCanceled: EventCanceled,
-        TicketPurchased: TicketPurchased,
-        TicketRecliamed: TicketRecliamed,
         #[flat]
         SRC5Event: SRC5Component::Event,
         #[flat]
         AccessControlEvent: AccessControlComponent::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
+        EventCreated: EventCreated,
+        EventUpdated: EventUpdated,
+        EventCanceled: EventCanceled,
+        TicketPurchased: TicketPurchased,
+        TicketRecliamed: TicketRecliamed,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -99,6 +99,12 @@ pub mod EventFactory {
     //////////////////////////////////////////////////////////////////////////*//
     #[storage]
     struct Storage {
+        #[substorage(v0)]
+        src5: SRC5Component::Storage,
+        #[substorage(v0)]
+        accesscontrol: AccessControlComponent::Storage,
+        #[substorage(v0)]
+        upgradeable: UpgradeableComponent::Storage,
         event_count: u256,
         events: Map<u256, EventData>,
         event_array: Array<EventData>,
@@ -107,12 +113,6 @@ pub mod EventFactory {
         ticket_721_class_hash: felt252,
         tba_registry_class_hash: felt252,
         tba_accountv3_class_hash: felt252,
-        #[substorage(v0)]
-        src5: SRC5Component::Storage,
-        #[substorage(v0)]
-        accesscontrol: AccessControlComponent::Storage,
-        #[substorage(v0)]
-        upgradeable: UpgradeableComponent::Storage,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -139,7 +139,7 @@ pub mod EventFactory {
     //                             EVENT FACTORY IMPL
     //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
-    impl EventContractImpl of IEventFactory<ContractState> {
+    impl EventFactoryImpl of IEventFactory<ContractState> {
         // ------------------ WRITE FUNCTIONS -----------------------
         fn create_event(
             ref self: ContractState,
