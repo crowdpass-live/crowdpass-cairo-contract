@@ -11,12 +11,12 @@ keywords = ["crowdpass", "event", "cairo", "contracts", "starknet", "standards"]
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
 
 [dependencies]
-openzeppelin = "0.17.0"
 starknet = "2.8.2"
+openzeppelin = "0.17.0"
 token_bound_accounts = "0.3.1"
 
 [dev-dependencies]
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.34.0" }
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.35.1" }
 assert_macros = "2.8.2"
 
 [[target.starknet-contract]]
@@ -26,8 +26,8 @@ casm = true
 [scripts]
 test = "snforge test"
 
-[tool.voyager]
-ticket_721 = { path = "ticket/ticket_721.cairo", address = "0x038ac0660e4ce209a8d71527ef92103de48801cbe5ce0c97fb7e262f961e510a" }
+# [tool.voyager]
+# ticket-721 = { path = "ticket/ticket_721.cairo", address = "0x038ac0660e4ce209a8d71527ef92103de48801cbe5ce0c97fb7e262f961e510a" }
 
 [[tool.snforge.fork]]
 name = "SEPOLIA_LATEST"
