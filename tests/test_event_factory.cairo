@@ -1,22 +1,12 @@
-use starknet::ContractAddress;
+use starknet::{ContractAddress, get_block_timestamp};
 
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
     stop_cheat_caller_address
 };
-use openzeppelin::token::erc721::{
-    extensions::erc721_enumerable::interface::{
-        IERC721EnumerableDispatcher, IERC721EnumerableDispatcherTrait
-    },
-    interface::{ERC721ABIDispatcher, ERC721ABIDispatcherTrait}
-};
 use crowd_pass::{
-    // event_factory::EventFactory, tickets::{ticket_factory::TicketFactory, ticket_721::Ticket721},
     interfaces::{
-        i_event_factory::{
-            IEventFactory, EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait
-        },
-        i_ticket_factory::{ITicketFactoryDispatcher, ITicketFactoryDispatcherTrait},
+        i_event_factory::{EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait},
         i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait}
     }
 };
@@ -30,6 +20,7 @@ const TBA_ACCOUNTV3_CLASS_HASH: felt252 =
     0x29d2a1b11dd97289e18042502f11356133a2201dd19e716813fb01fbee9e9a4;
 
 const ACCOUNT: felt252 = 1234;
+const ACCOUNT1: felt252 = 5678;
 
 fn deploy_contract(name: ByteArray) -> ContractAddress {
     let contract = declare(name).unwrap().contract_class();
@@ -37,7 +28,7 @@ fn deploy_contract(name: ByteArray) -> ContractAddress {
     contract_address
 }
 
-fn setup() -> (ContractAddress, IEventFactoryDispatcher) {
+fn deploy_event_factory() -> ContractAddress {
     let contract = declare("EventFactory").unwrap().contract_class();
     let calldata = array![
         ACCOUNT,
@@ -48,12 +39,12 @@ fn setup() -> (ContractAddress, IEventFactoryDispatcher) {
     ];
     let (event_factory_address, _) = contract.deploy(@calldata).unwrap();
 
-    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
-    (event_factory_address, event_factory)
+    event_factory_address
 }
 
-fn setup_create_event() {
-    let (event_factory_address, event_factory) = setup();
+fn create_event() -> (ContractAddress, bool, EventData, ITicket721Dispatcher,) {
+    let event_factory_address = deploy_event_factory();
+    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     start_cheat_caller_address(event_factory_address, ACCOUNT.try_into().unwrap());
 
@@ -64,8 +55,8 @@ fn setup_create_event() {
             "Event URI",
             "Event Description",
             "Event Location",
-            1630000000,
-            1630000000,
+            get_block_timestamp(),
+            get_block_timestamp() + 86400,
             100,
             100
         );
@@ -73,31 +64,14 @@ fn setup_create_event() {
     let event_data: EventData = event_factory.get_event(1);
     let evt_addr: ContractAddress = event_data.ticket_addr;
     let event_ticket = ITicket721Dispatcher { contract_address: evt_addr };
+    (event_factory_address, event, event_data, event_ticket)
 }
 
 #[test]
 #[fork("SEPOLIA_LATEST")]
 fn test_create_event() {
-    let (event_factory_address, event_factory) = setup();
-
-    start_cheat_caller_address(event_factory_address, ACCOUNT.try_into().unwrap());
-
-    let event = event_factory
-        .create_event(
-            "Event Name",
-            "Event Symbol",
-            "Event URI",
-            "Event Description",
-            "Event Location",
-            1630000000,
-            1630000000,
-            100,
-            100
-        );
-
-    let event_data: EventData = event_factory.get_event(1);
-    let evt_addr: ContractAddress = event_data.ticket_addr;
-    let event_ticket = ITicket721Dispatcher { contract_address: evt_addr };
+    let (event_factory_address, event, event_data, event_ticket) = create_event();
+    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     assert(event, 'Event creation failed');
     assert(event_factory.get_event_count() == 1, 'Invalid event count');
@@ -105,8 +79,8 @@ fn test_create_event() {
     assert(event_data.organizer == ACCOUNT.try_into().unwrap(), 'Invalid organizer');
     assert(event_data.description == "Event Description", 'Invalid description');
     assert(event_data.location == "Event Location", 'Invalid location');
-    assert(event_data.start_date == 1630000000, 'Invalid start date');
-    assert(event_data.end_date == 1630000000, 'Invalid end date');
+    assert(event_data.start_date <= get_block_timestamp(), 'Invalid start date');
+    assert(event_data.end_date <= get_block_timestamp() + 86400, 'Invalid end date');
     assert(event_data.total_tickets == 100, 'Invalid total tickets');
     assert(event_data.ticket_price == 100, 'Invalid ticket price');
     assert(event_ticket.total_supply() == 0, 'Invalid total supply');
@@ -116,7 +90,29 @@ fn test_create_event() {
 
 #[test]
 #[fork("SEPOLIA_LATEST")]
-fn test_cancel_event() {}
+fn test_cancel_event() {
+    let (event_factory_address, _, _, _) = create_event();
+    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
+
+    let event_canceled = event_factory.cancel_event(1);
+    let event_data: EventData = event_factory.get_event(1);
+
+    assert(event_canceled, 'Event cancellation failed');
+    assert(event_data.is_canceled == true, 'Event not canceled');
+}
+// #[test]
+// #[fork("SEPOLIA_LATEST")]
+// fn test_not_organizer_cancel_event() {
+//     let (event_factory_address, _, _, _) = create_event();
+//     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
+
+//     let event_canceled = event_factory.cancel_event(1);
+//     let event_data: EventData = event_factory.get_event(1);
+
+//     assert(event_canceled, 'Event cancellation failed');
+//     assert(event_data.is_canceled == true, 'Event not canceled');
+// }
+
 // #[test]
 // fn test_increase_balance() {
 //     let contract_address = deploy_contract("EventFactory");
