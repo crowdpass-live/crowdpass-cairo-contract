@@ -5,17 +5,17 @@ pub mod Ticket721 {
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
     use starknet::{
-        ContractAddress, ClassHash, storage::{StoragePointerReadAccess, StoragePointerWriteAccess,},
+        ContractAddress, ClassHash, storage::{StoragePointerReadAccess, StoragePointerWriteAccess},
     };
     use openzeppelin::{
-        access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE,},
+        access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
-        security::{pausable::PausableComponent, initializable::InitializableComponent,},
+        security::{pausable::PausableComponent, initializable::InitializableComponent},
         token::{
-            common::erc2981::{DefaultConfig, ERC2981Component,},
-            erc721::{extensions::ERC721EnumerableComponent, ERC721Component,},
+            common::erc2981::{DefaultConfig, ERC2981Component},
+            erc721::{extensions::ERC721EnumerableComponent, ERC721Component},
         },
-        upgrades::{interface::IUpgradeable, UpgradeableComponent,},
+        upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
 
     //*//////////////////////////////////////////////////////////////////////////
