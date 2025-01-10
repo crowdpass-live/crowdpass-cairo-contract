@@ -1,4 +1,8 @@
 target
 .snfoundry_cache/
 
+# profile and trace files
+profile
+snfoundry_trace
+
 .DS_Store

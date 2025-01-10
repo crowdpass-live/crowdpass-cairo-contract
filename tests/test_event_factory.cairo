@@ -42,7 +42,7 @@ fn deploy_event_factory() -> ContractAddress {
     event_factory_address
 }
 
-fn create_event() -> (ContractAddress, bool, EventData, ITicket721Dispatcher,) {
+fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
     let event_factory_address = deploy_event_factory();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
@@ -61,37 +61,36 @@ fn create_event() -> (ContractAddress, bool, EventData, ITicket721Dispatcher,) {
             100
         );
 
-    let event_data: EventData = event_factory.get_event(1);
-    let evt_addr: ContractAddress = event_data.ticket_addr;
+    let evt_addr: ContractAddress = event.ticket_addr;
     let event_ticket = ITicket721Dispatcher { contract_address: evt_addr };
-    (event_factory_address, event, event_data, event_ticket)
+    (event_factory_address, event, event_ticket)
 }
 
 #[test]
 #[fork("SEPOLIA_LATEST")]
 fn test_create_event() {
-    let (event_factory_address, event, event_data, event_ticket) = create_event();
+    let (event_factory_address, event, event_ticket) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
-    assert(event, 'Event creation failed');
-    assert(event_factory.get_event_count() == 1, 'Invalid event count');
-    assert(event_data.id == 1, 'Invalid event id');
-    assert(event_data.organizer == ACCOUNT.try_into().unwrap(), 'Invalid organizer');
-    assert(event_data.description == "Event Description", 'Invalid description');
-    assert(event_data.location == "Event Location", 'Invalid location');
-    assert(event_data.start_date <= get_block_timestamp(), 'Invalid start date');
-    assert(event_data.end_date <= get_block_timestamp() + 86400, 'Invalid end date');
-    assert(event_data.total_tickets == 100, 'Invalid total tickets');
-    assert(event_data.ticket_price == 100, 'Invalid ticket price');
-    assert(event_ticket.total_supply() == 0, 'Invalid total supply');
-    assert(event_ticket.name() == "Event Name", 'Invalid name');
-    assert(event_ticket.symbol() == "Event Symbol", 'Invalid symbol');
+    // assert(event, 'Event creation failed');
+    assert_eq!(event_factory.get_event_count(), 1);
+    assert_eq!(event.id, 1);
+    assert_eq!(event.organizer, ACCOUNT.try_into().unwrap());
+    assert_eq!(event.description, "Event Description");
+    assert_eq!(event.location, "Event Location");
+    assert(event.start_date <= get_block_timestamp(), 'Invalid start date');
+    assert(event.end_date <= get_block_timestamp() + 86400, 'Invalid end date');
+    assert_eq!(event.total_tickets, 100);
+    assert_eq!(event.ticket_price, 100);
+    assert_eq!(event_ticket.total_supply(), 0);
+    assert_eq!(event_ticket.name(), "Event Name");
+    assert_eq!(event_ticket.symbol(), "Event Symbol");
 }
 
 #[test]
 #[fork("SEPOLIA_LATEST")]
 fn test_cancel_event() {
-    let (event_factory_address, _, _, _) = create_event();
+    let (event_factory_address, _, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     let event_canceled = event_factory.cancel_event(1);
@@ -100,19 +99,21 @@ fn test_cancel_event() {
     assert(event_canceled, 'Event cancellation failed');
     assert(event_data.is_canceled == true, 'Event not canceled');
 }
-// #[test]
-// #[fork("SEPOLIA_LATEST")]
-// fn test_not_organizer_cancel_event() {
-//     let (event_factory_address, _, _, _) = create_event();
-//     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
-//     let event_canceled = event_factory.cancel_event(1);
-//     let event_data: EventData = event_factory.get_event(1);
+#[test]
+#[fork("SEPOLIA_LATEST")]
+#[should_panic(expected: 'Caller not main organizer')]
+fn test_not_main_organizer_cancel_event() {
+    let (event_factory_address, _, _) = create_event();
+    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
-//     assert(event_canceled, 'Event cancellation failed');
-//     assert(event_data.is_canceled == true, 'Event not canceled');
-// }
+    event_factory.add_organizer(1, ACCOUNT1.try_into().unwrap());
+    stop_cheat_caller_address(event_factory_address);
 
+    start_cheat_caller_address(event_factory_address, ACCOUNT1.try_into().unwrap());
+
+    let event_canceled = event_factory.cancel_event(1);
+}
 // #[test]
 // fn test_increase_balance() {
 //     let contract_address = deploy_contract("EventFactory");

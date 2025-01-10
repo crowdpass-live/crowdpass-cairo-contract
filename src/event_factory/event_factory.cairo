@@ -107,7 +107,6 @@ pub mod EventFactory {
         upgradeable: UpgradeableComponent::Storage,
         event_count: u256,
         events: Map<u256, EventData>,
-        event_array: Array<EventData>,
         event_ticket_balance: Map<u256, u256>,
         strk_token_address: felt252,
         ticket_721_class_hash: felt252,
@@ -152,72 +151,21 @@ pub mod EventFactory {
             end_date: u64,
             total_tickets: u256,
             ticket_price: u256,
-        ) -> bool {
-            let caller = get_caller_address();
-            let event_count = self.event_count.read() + 1;
-            let address_this = get_contract_address();
-
-            // assert not zero ContractAddress
-            assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
-
-            // create event role
-            let event_hash = PedersenTrait::new(0)
-                .update('CROWD_PASS_EVENT')
-                .update(event_count.try_into().unwrap())
-                .finalize();
-            // grant role to caller
-            self.accesscontrol._grant_role(event_hash, caller);
-
-            // let event_ticket_addr = self.deploy_ticket(address_this, address_this, ''.into());
-
-            // deploy ticket721 contract
-            let event_ticket = deploy_syscall(
-                self.ticket_721_class_hash.read().try_into().unwrap(),
-                event_hash,
-                array![address_this.into(), address_this.into()].span(),
-                true,
-            );
-
-            let (event_ticket_addr, _) = event_ticket.unwrap_syscall();
-
-            // initialize ticket721 contract
-            ITicket721Dispatcher { contract_address: event_ticket_addr }
-                .initialize(name, symbol, uri,);
-
-            // new event struct instance
-            let event_instance = EventData {
-                id: event_count,
-                organizer: caller,
-                ticket_addr: event_ticket_addr,
-                description: description,
-                location: location,
-                created_at: get_block_timestamp(),
-                updated_at: 0,
-                start_date: start_date,
-                end_date: end_date,
-                total_tickets: total_tickets,
-                ticket_price: ticket_price,
-                is_canceled: false,
-            };
-
-            // Map event_id to new_event
-            self.events.entry(event_count).write(event_instance);
-
-            // Append event to event_array
-            // self.event_array.append(event_instance);
-
-            // Update event count
-            self.event_count.write(event_count);
-
-            // emit event for event creation
-            self
-                .emit(
-                    EventCreated {
-                        id: event_count, organizer: caller, ticket_address: event_ticket_addr
-                    }
+        ) -> EventData {
+            let event = self
+                ._create_event(
+                    name,
+                    symbol,
+                    uri,
+                    description,
+                    location,
+                    start_date,
+                    end_date,
+                    total_tickets,
+                    ticket_price
                 );
 
-            true
+            event
         }
 
         fn update_event(
@@ -235,10 +183,7 @@ pub mod EventFactory {
         ) -> bool {
             let caller = get_caller_address();
 
-            let event_hash = PedersenTrait::new(0)
-                .update('CROWD_PASS_EVENT')
-                .update(event_id.try_into().unwrap())
-                .finalize();
+            let event_hash = self._gen_event_hash(event_id);
             // assert caller has role
             self.accesscontrol.assert_only_role(event_hash);
 
@@ -269,17 +214,14 @@ pub mod EventFactory {
             let organizer = self.events.entry(event_id).read().organizer;
             let mut event_instance = self.events.entry(event_id).read();
 
-            let event_hash = PedersenTrait::new(0)
-                .update('CROWD_PASS_EVENT')
-                .update(event_id.try_into().unwrap())
-                .finalize();
-            // assert caller has role
-            self.accesscontrol.assert_only_role(event_hash);
+            let event_hash = self._gen_event_hash(event_id);
 
             assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
             // assert not zeroAddr caller
             assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
-            // assert caller is event organizer
+            // assert caller has  role
+            self.accesscontrol.assert_only_role(event_hash);
+            // assert caller is the main event organizer
             assert(caller == organizer, Errors::NOT_EVENT_ORGANIZER);
             // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
@@ -291,6 +233,17 @@ pub mod EventFactory {
             self.emit(EventCanceled { id: event_id });
 
             true
+        }
+
+        fn add_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
+            let event_hash = self._gen_event_hash(event_id);
+            self.accesscontrol.assert_only_role(event_hash);
+            self._add_organizer(event_hash, organizer);
+        }
+        fn remove_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
+            let event_hash = self._gen_event_hash(event_id);
+            self.accesscontrol.assert_only_role(event_hash);
+            self._remove_organizer(event_hash, organizer);
         }
 
         fn purchase_ticket(ref self: ContractState, event_id: u256) -> bool {
@@ -413,6 +366,98 @@ pub mod EventFactory {
     //////////////////////////////////////////////////////////////////////////*//
     impl AccessControlInternalImpl = AccessControlComponent::InternalImpl<ContractState>;
     impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
+
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn _gen_event_hash(self: @ContractState, event_id: u256) -> felt252 {
+            PedersenTrait::new(0)
+                .update('CROWD_PASS_EVENT')
+                .update(event_id.try_into().unwrap())
+                .finalize()
+        }
+
+        fn _create_event(
+            ref self: ContractState,
+            name: ByteArray,
+            symbol: ByteArray,
+            uri: ByteArray,
+            description: ByteArray,
+            location: ByteArray,
+            start_date: u64,
+            end_date: u64,
+            total_tickets: u256,
+            ticket_price: u256,
+        ) -> EventData {
+            let caller = get_caller_address();
+            let event_count = self.event_count.read() + 1;
+            let address_this = get_contract_address();
+
+            // create event role
+            let event_hash = self._gen_event_hash(event_count);
+            // grant caller event role
+            self.accesscontrol._grant_role(event_hash, caller);
+
+            // deploy ticket721 contract
+            let event_ticket = deploy_syscall(
+                self.ticket_721_class_hash.read().try_into().unwrap(),
+                event_hash,
+                array![address_this.into(), address_this.into()].span(),
+                true,
+            );
+
+            let (event_ticket_addr, _) = event_ticket.unwrap_syscall();
+
+            // initialize ticket721 contract
+            ITicket721Dispatcher { contract_address: event_ticket_addr }
+                .initialize(name, symbol, uri,);
+
+            // new event struct instance
+            let event_instance = EventData {
+                id: event_count,
+                organizer: caller,
+                ticket_addr: event_ticket_addr,
+                description: description,
+                location: location,
+                created_at: get_block_timestamp(),
+                updated_at: 0,
+                start_date: start_date,
+                end_date: end_date,
+                total_tickets: total_tickets,
+                ticket_price: ticket_price,
+                is_canceled: false,
+            };
+
+            // Map event_id to new_event
+            self.events.entry(event_count).write(event_instance);
+
+            // Update event count
+            self.event_count.write(event_count);
+
+            // emit event for event creation
+            self
+                .emit(
+                    EventCreated {
+                        id: event_count, organizer: caller, ticket_address: event_ticket_addr
+                    }
+                );
+
+            self.events.entry(event_count).read()
+        }
+
+        fn _add_organizer(
+            ref self: ContractState, event_hash: felt252, organizer: ContractAddress
+        ) {
+            // grant role to caller
+            self.accesscontrol._grant_role(event_hash, organizer);
+        }
+
+        fn _remove_organizer(
+            ref self: ContractState, event_hash: felt252, organizer: ContractAddress
+        ) {
+            // revoke role from caller
+            self.accesscontrol._revoke_role(event_hash, organizer);
+        }
+    }
     // #[generate_trait]
 // pub impl MultiCallImpl of IMultiCallTrait<ContractState> {
 //     // Internal function to execute multiple calls

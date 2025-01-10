@@ -6,7 +6,7 @@ pub mod Errors {
     pub const ZERO_AMOUNT: felt252 = 'Amount cannot be zero';
     pub const ZERO_ADDRESS_CALLER: felt252 = 'Caller cannot be zero address';
     pub const ZERO_ADDRESS_OWNER: felt252 = 'Owner cannot be zero address';
-    pub const NOT_EVENT_ORGANIZER: felt252 = 'Caller not organizer';
+    pub const NOT_EVENT_ORGANIZER: felt252 = 'Caller not main organizer';
     pub const EVENT_NOT_CREATED: felt252 = 'Event not yet created';
     pub const EVENT_ENDED: felt252 = 'Event has ended';
     pub const EVENT_CANCELED: felt252 = 'Event is canceled';
