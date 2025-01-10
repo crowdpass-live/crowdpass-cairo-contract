@@ -4,9 +4,7 @@ pub mod EventFactory {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use core::{
-        num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait,
-    };
+    use core::{num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait,};
     use starknet::{
         ContractAddress, SyscallResultTrait, class_hash::ClassHash, get_block_timestamp,
         get_caller_address, get_contract_address, syscalls::deploy_syscall,
@@ -446,12 +444,16 @@ pub mod EventFactory {
             self.events.entry(event_count).read()
         }
 
-        fn _add_organizer(ref self: ContractState, event_hash: felt252, organizer: ContractAddress) {
+        fn _add_organizer(
+            ref self: ContractState, event_hash: felt252, organizer: ContractAddress
+        ) {
             // grant role to caller
             self.accesscontrol._grant_role(event_hash, organizer);
         }
 
-        fn _remove_organizer(ref self: ContractState, event_hash: felt252, organizer: ContractAddress) {
+        fn _remove_organizer(
+            ref self: ContractState, event_hash: felt252, organizer: ContractAddress
+        ) {
             // revoke role from caller
             self.accesscontrol._revoke_role(event_hash, organizer);
         }

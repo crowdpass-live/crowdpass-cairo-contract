@@ -114,7 +114,6 @@ fn test_not_main_organizer_cancel_event() {
 
     let event_canceled = event_factory.cancel_event(1);
 }
-
 // #[test]
 // fn test_increase_balance() {
 //     let contract_address = deploy_contract("EventFactory");
