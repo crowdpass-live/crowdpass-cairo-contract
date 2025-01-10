@@ -396,6 +396,8 @@ pub mod EventFactory {
 
             // create event role
             let event_hash = self._gen_event_hash(event_count);
+            // grant caller event role
+            self.accesscontrol._grant_role(event_hash, caller);
 
             // deploy ticket721 contract
             let event_ticket = deploy_syscall(
