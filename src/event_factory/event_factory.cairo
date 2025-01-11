@@ -203,27 +203,16 @@ pub mod EventFactory {
         }
 
         fn cancel_event(ref self: ContractState, event_id: u256) -> bool {
-            let caller = get_caller_address();
+            // assert if event has been created
             let event_count = self.event_count.read();
-            let mut event_instance = self.events.entry(event_id).read();
-
-            let event_hash = self._gen_event_hash(event_id);
-
             assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
-            // assert caller has  role
-            self.accesscontrol.assert_only_role(event_hash);
-            // assert caller is the main event organizer
-            assert(caller == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
-            // assert event has not ended
-            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
 
-            // cancel event here
-            event_instance.is_canceled = true;
-            self.events.entry(event_id).write(event_instance);
+            // assert caller has event role
+            self.accesscontrol.assert_only_role(self._gen_event_hash(event_id));
 
-            self.emit(EventCanceled { id: event_id });
+            let event_canceled = self._cancel_event(event_id);
 
-            true
+            event_canceled
         }
 
         fn add_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
@@ -466,6 +455,22 @@ pub mod EventFactory {
             self.emit(EventUpdated { id: event_id, start_date: start_date, end_date: end_date });
 
             self.events.entry(event_id).read()
+        }
+
+        fn _cancel_event(ref self: ContractState, event_id: u256) -> bool {
+            let mut event_instance = self.events.entry(event_id).read();
+            // assert caller is the main event organizer
+            assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
+            // assert event has not ended
+            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
+
+            // cancel event here
+            event_instance.is_canceled = true;
+            self.events.entry(event_id).write(event_instance);
+
+            self.emit(EventCanceled { id: event_id });
+
+            true
         }
 
         fn _add_organizer(
