@@ -112,7 +112,7 @@ fn test_not_main_organizer_cancel_event() {
 
     start_cheat_caller_address(event_factory_address, ACCOUNT1.try_into().unwrap());
 
-    let event_canceled = event_factory.cancel_event(1);
+    event_factory.cancel_event(1);
 }
 // #[test]
 // fn test_increase_balance() {
