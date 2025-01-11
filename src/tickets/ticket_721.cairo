@@ -70,7 +70,6 @@ pub mod Ticket721 {
     //////////////////////////////////////////////////////////////////////////*//
     #[storage]
     struct Storage {
-        current_index: u256,
         #[substorage(v0)]
         erc721: ERC721Component::Storage,
         #[substorage(v0)]
@@ -87,6 +86,7 @@ pub mod Ticket721 {
         initializable: InitializableComponent::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
+        current_index: u256,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
