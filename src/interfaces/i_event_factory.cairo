@@ -27,7 +27,7 @@ pub trait IEventFactory<TContractState> {
         end_date: u64,
         total_tickets: u256,
         ticket_price: u256,
-    ) -> bool;
+    ) -> EventData;
     fn cancel_event(ref self: TContractState, event_id: u256) -> bool;
     fn add_organizer(ref self: TContractState, event_id: u256, organizer: ContractAddress);
     fn remove_organizer(ref self: TContractState, event_id: u256, organizer: ContractAddress);
