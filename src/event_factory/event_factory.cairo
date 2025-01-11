@@ -359,7 +359,7 @@ pub mod EventFactory {
     impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
     #[generate_trait]
-    impl InternalImpl of InternalTrait {
+    impl PrivateImpl of PrivateTrait {
         fn _gen_event_hash(self: @ContractState, event_id: u256) -> felt252 {
             PedersenTrait::new(0)
                 .update('CROWD_PASS_EVENT')
