@@ -180,49 +180,40 @@ pub mod EventFactory {
             end_date: u64,
             total_tickets: u256,
             ticket_price: u256,
-        ) -> bool {
-            let caller = get_caller_address();
-
+        ) -> EventData {
             let event_hash = self._gen_event_hash(event_id);
             // assert caller has role
             self.accesscontrol.assert_only_role(event_hash);
 
-            let mut event_instance = self.events.entry(event_id).read();
+            let event = self
+                ._update_event(
+                    event_id,
+                    name,
+                    symbol,
+                    uri,
+                    description,
+                    location,
+                    start_date,
+                    end_date,
+                    total_tickets,
+                    ticket_price
+                );
 
-            // assert not zeroAddr caller
-            assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
-            // assert event has not ended
-            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
-
-            // update event here
-            event_instance.start_date = start_date;
-            event_instance.end_date = end_date;
-            event_instance.total_tickets = total_tickets;
-            event_instance.ticket_price = ticket_price;
-            event_instance.updated_at = get_block_timestamp();
-
-            self.events.entry(event_id).write(event_instance);
-
-            self.emit(EventUpdated { id: event_id, start_date: start_date, end_date: end_date });
-
-            true
+            event
         }
 
         fn cancel_event(ref self: ContractState, event_id: u256) -> bool {
             let caller = get_caller_address();
             let event_count = self.event_count.read();
-            let organizer = self.events.entry(event_id).read().organizer;
             let mut event_instance = self.events.entry(event_id).read();
 
             let event_hash = self._gen_event_hash(event_id);
 
             assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
-            // assert not zeroAddr caller
-            assert(caller.is_non_zero(), Errors::ZERO_ADDRESS_CALLER);
             // assert caller has  role
             self.accesscontrol.assert_only_role(event_hash);
             // assert caller is the main event organizer
-            assert(caller == organizer, Errors::NOT_EVENT_ORGANIZER);
+            assert(caller == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
             // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
 
@@ -442,6 +433,39 @@ pub mod EventFactory {
                 );
 
             self.events.entry(event_count).read()
+        }
+
+        fn _update_event(
+            ref self: ContractState,
+            event_id: u256,
+            name: ByteArray,
+            symbol: ByteArray,
+            uri: ByteArray,
+            description: ByteArray,
+            location: ByteArray,
+            start_date: u64,
+            end_date: u64,
+            total_tickets: u256,
+            ticket_price: u256,
+        ) -> EventData {
+            let mut event_instance = self.events.entry(event_id).read();
+            // assert event has not ended
+            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
+            // assert caller is the main organizer
+            assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
+
+            // update event here
+            event_instance.start_date = start_date;
+            event_instance.end_date = end_date;
+            event_instance.total_tickets = total_tickets;
+            event_instance.ticket_price = ticket_price;
+            event_instance.updated_at = get_block_timestamp();
+
+            self.events.entry(event_id).write(event_instance);
+
+            self.emit(EventUpdated { id: event_id, start_date: start_date, end_date: end_date });
+
+            self.events.entry(event_id).read()
         }
 
         fn _add_organizer(
