@@ -4,9 +4,7 @@ pub mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use starknet::{
-        ContractAddress, ClassHash, storage::{StoragePointerReadAccess, StoragePointerWriteAccess},
-    };
+    use starknet::{ContractAddress, ClassHash};
     use openzeppelin::{
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
@@ -86,7 +84,6 @@ pub mod Ticket721 {
         initializable: InitializableComponent::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
-        current_index: u256,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -137,9 +134,8 @@ pub mod Ticket721 {
         #[external(v0)]
         fn safe_mint(ref self: ContractState, recipient: ContractAddress,) {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
-            let current_index = self.current_index.read() + 1; // Increment index
-            self.current_index.write(current_index); // Update index
-            self.erc721.safe_mint(recipient, current_index, [''].span());
+            let index = self.total_supply() + 1;
+            self.erc721.safe_mint(recipient, index, [''].span());
         }
 
         #[external(v0)]
