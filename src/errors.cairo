@@ -8,6 +8,7 @@ pub mod Errors {
     pub const ZERO_ADDRESS_OWNER: felt252 = 'Owner cannot be zero address';
     pub const NOT_EVENT_ORGANIZER: felt252 = 'Caller not main organizer';
     pub const EVENT_NOT_CREATED: felt252 = 'Event not yet created';
+    pub const EVENT_STARTED: felt252 = 'Event has started';
     pub const EVENT_ENDED: felt252 = 'Event has ended';
     pub const EVENT_CANCELED: felt252 = 'Event is canceled';
     pub const EVENT_NOT_CANCELED: felt252 = 'Event is not canceled';
