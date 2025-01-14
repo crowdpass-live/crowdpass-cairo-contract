@@ -4,6 +4,7 @@ use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
     stop_cheat_caller_address
 };
+use core::{pedersen::PedersenTrait, hash::HashStateTrait};
 use crowd_pass::{
     interfaces::{
         i_event_factory::{EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait},
@@ -28,22 +29,20 @@ fn deploy_contract(name: ByteArray) -> ContractAddress {
     contract_address
 }
 
-fn deploy_event_factory() -> ContractAddress {
-    let contract = declare("EventFactory").unwrap().contract_class();
-    let calldata = array![
-        ACCOUNT,
-        STRK_TOKEN_ADDR,
-        TICKET_NFT_CLASS_HASH,
-        TBA_REGISTRY_CLASS_HASH,
-        TBA_ACCOUNTV3_CLASS_HASH
-    ];
-    let (event_factory_address, _) = contract.deploy(@calldata).unwrap();
+fn gen_event_hash(event_id: u256) -> felt252 {
+    PedersenTrait::new(0).update('CROWD_PASS_EVENT').update(event_id.try_into().unwrap()).finalize()
+}
 
-    event_factory_address
+fn gen_main_organizer_role(event_id: u256) -> felt252 {
+    PedersenTrait::new(0).update('MAIN_ORGANIZER').update(gen_event_hash(event_id)).finalize()
 }
 
 fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
-    let event_factory_address = deploy_event_factory();
+    let event_factory_contract = declare("EventFactory").unwrap().contract_class();
+    let calldata = array![
+        ACCOUNT, TICKET_NFT_CLASS_HASH, TBA_REGISTRY_CLASS_HASH, TBA_ACCOUNTV3_CLASS_HASH
+    ];
+    let (event_factory_address, _) = event_factory_contract.deploy(@calldata).unwrap();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     start_cheat_caller_address(event_factory_address, ACCOUNT.try_into().unwrap());
@@ -102,17 +101,25 @@ fn test_cancel_event() {
 
 #[test]
 #[fork("SEPOLIA_LATEST")]
-#[should_panic(expected: 'Caller not main organizer')]
-fn test_not_main_organizer_cancel_event() {
+#[should_panic(expected: 'Caller is missing role')]
+fn test_fail_not_main_organizer_cancel_event() {
     let (event_factory_address, _, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
-    event_factory.add_organizer(1, ACCOUNT1.try_into().unwrap());
     stop_cheat_caller_address(event_factory_address);
 
     start_cheat_caller_address(event_factory_address, ACCOUNT1.try_into().unwrap());
 
     event_factory.cancel_event(1);
+}
+
+#[test]
+#[fork("SEPOLIA_LATEST")]
+fn test_remove_organizer() {
+    let (event_factory_address, _, _) = create_event();
+    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
+
+    event_factory.add_organizer(1, ACCOUNT1.try_into().unwrap());
 }
 // #[test]
 // fn test_increase_balance() {

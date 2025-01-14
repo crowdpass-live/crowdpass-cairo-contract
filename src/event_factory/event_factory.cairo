@@ -4,7 +4,7 @@ pub mod EventFactory {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use core::{num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait,};
+    use core::{num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait};
     use starknet::{
         ContractAddress, SyscallResultTrait, class_hash::ClassHash, get_block_timestamp,
         get_caller_address, get_contract_address, get_tx_info, syscalls::deploy_syscall,
@@ -183,9 +183,9 @@ pub mod EventFactory {
             total_tickets: u256,
             ticket_price: u256,
         ) -> EventData {
-            let event_hash = self._gen_event_hash(event_id);
-            // assert caller has role
-            self.accesscontrol.assert_only_role(event_hash);
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            // assert caller has main organizer role
+            self.accesscontrol.assert_only_role(main_organizer_role);
 
             let event = self
                 ._update_event(
@@ -205,12 +205,9 @@ pub mod EventFactory {
         }
 
         fn cancel_event(ref self: ContractState, event_id: u256) -> bool {
-            // assert if event has been created
-            let event_count = self.event_count.read();
-            assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
-
-            // assert caller has event role
-            self.accesscontrol.assert_only_role(self._gen_event_hash(event_id));
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            // assert caller has main organizer role
+            self.accesscontrol.assert_only_role(main_organizer_role);
 
             let event_canceled = self._cancel_event(event_id);
 
@@ -218,13 +215,17 @@ pub mod EventFactory {
         }
 
         fn add_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            // assert caller has main organizer role
+            self.accesscontrol.assert_only_role(main_organizer_role);
             let event_hash = self._gen_event_hash(event_id);
-            self.accesscontrol.assert_only_role(event_hash);
             self._add_organizer(event_hash, organizer);
         }
         fn remove_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            // assert caller has main organizer role
+            self.accesscontrol.assert_only_role(main_organizer_role);
             let event_hash = self._gen_event_hash(event_id);
-            self.accesscontrol.assert_only_role(event_hash);
             self._remove_organizer(event_hash, organizer);
         }
 
@@ -291,6 +292,13 @@ pub mod EventFactory {
                 .finalize()
         }
 
+        fn _gen_main_organizer_role(self: @ContractState, event_id: u256) -> felt252 {
+            PedersenTrait::new(0)
+                .update('MAIN_ORGANIZER')
+                .update(self._gen_event_hash(event_id))
+                .finalize()
+        }
+
         fn _create_event(
             ref self: ContractState,
             name: ByteArray,
@@ -309,8 +317,11 @@ pub mod EventFactory {
 
             // create event role
             let event_hash = self._gen_event_hash(event_count);
-            // grant caller event role
-            self.accesscontrol._grant_role(event_hash, caller);
+            let main_organizer_role = self._gen_main_organizer_role(event_count);
+            // grant caller main organizer role
+            self.accesscontrol._grant_role(main_organizer_role, caller);
+            // set main organizer role as the admin role for this event role
+            self.accesscontrol.set_role_admin(event_hash, main_organizer_role);
 
             // deploy ticket721 contract
             let event_ticket = deploy_syscall(
@@ -393,6 +404,10 @@ pub mod EventFactory {
         }
 
         fn _cancel_event(ref self: ContractState, event_id: u256) -> bool {
+            // assert event has been created
+            let event_count = self.event_count.read();
+            assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
+
             let mut event_instance = self.events.entry(event_id).read();
             // assert caller is the main event organizer
             assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
@@ -412,14 +427,14 @@ pub mod EventFactory {
             ref self: ContractState, event_hash: felt252, organizer: ContractAddress
         ) {
             // grant role to caller
-            self.accesscontrol._grant_role(event_hash, organizer);
+            self.accesscontrol.grant_role(event_hash, organizer);
         }
 
         fn _remove_organizer(
             ref self: ContractState, event_hash: felt252, organizer: ContractAddress
         ) {
             // revoke role from caller
-            self.accesscontrol._revoke_role(event_hash, organizer);
+            self.accesscontrol.revoke_role(event_hash, organizer);
         }
 
         fn _purchase_ticket(ref self: ContractState, event_id: u256) -> ContractAddress {
@@ -496,33 +511,4 @@ pub mod EventFactory {
             tba_address
         }
     }
-    // #[generate_trait]
-// pub impl MultiCallImpl of IMultiCallTrait<ContractState> {
-//     // Internal function to execute multiple calls
-//     fn _multicalls(ref self: ContractState, mut calls: Array<Call>) -> Array<Span<felt252>> {
-//         let mut result: Array<Span<felt252>> = ArrayTrait::new();
-//         let mut calls = calls;
-//         let mut index = 0;
-
-    //         loop {
-//             match calls.pop_front() {
-//                 Option::Some(call) => {
-//                     match call_contract_syscall(call.to, call.selector, call.calldata) {
-//                         Result::Ok(mut retdata) => {
-//                             result.append(retdata);
-//                             index += 1;
-//                         },
-//                         Result::Err(err) => {
-//                             let mut data = array!['multicall-failed', index];
-//                             data.append_all(err.span());
-//                             panic(data);
-//                         }
-//                     }
-//                 },
-//                 Option::None(_) => { break (); }
-//             };
-//         };
-//         result
-//     }
-// }
 }
