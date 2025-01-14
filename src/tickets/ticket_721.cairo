@@ -4,9 +4,7 @@ pub mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use starknet::{
-        ContractAddress, ClassHash, storage:: StoragePointerWriteAccess,
-    };
+    use starknet::{ContractAddress, ClassHash, storage::StoragePointerWriteAccess,};
     use openzeppelin::{
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
@@ -171,12 +169,7 @@ pub mod Ticket721 {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
             let old_symbol = self.erc721.symbol();
             self.erc721.ERC721_symbol.write(new_symbol);
-            self
-                .emit(
-                    SymbolUpdated {
-                        old_symbol: old_symbol, new_symbol: self.erc721.symbol()
-                    }
-                );
+            self.emit(SymbolUpdated { old_symbol: old_symbol, new_symbol: self.erc721.symbol() });
         }
 
         #[external(v0)]
@@ -185,6 +178,11 @@ pub mod Ticket721 {
             let old_uri = self.erc721._base_uri();
             self.erc721._set_base_uri(base_uri);
             self.emit(UriUpdated { old_uri: old_uri, new_uri: self.erc721._base_uri() });
+        }
+
+        #[external(v0)]
+        fn base_uri(self: @ContractState) -> ByteArray {
+            self.erc721._base_uri()
         }
     }
 
