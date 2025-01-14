@@ -4,7 +4,9 @@ pub mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use starknet::{ContractAddress, ClassHash};
+    use starknet::{
+        ContractAddress, ClassHash, storage:: StoragePointerWriteAccess,
+    };
     use openzeppelin::{
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
@@ -52,7 +54,25 @@ pub mod Ticket721 {
         InitializableEvent: InitializableComponent::Event,
         #[flat]
         UpgradeableEvent: UpgradeableComponent::Event,
+        NameUpdated: NameUpdated,
+        SymbolUpdated: SymbolUpdated,
         UriUpdated: UriUpdated,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct NameUpdated {
+        #[key]
+        old_name: ByteArray,
+        #[key]
+        new_name: ByteArray,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SymbolUpdated {
+        #[key]
+        old_symbol: ByteArray,
+        #[key]
+        new_symbol: ByteArray,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -139,11 +159,32 @@ pub mod Ticket721 {
         }
 
         #[external(v0)]
+        fn update_name(ref self: ContractState, new_name: ByteArray) {
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
+            let old_name = self.erc721.name();
+            self.erc721.ERC721_name.write(new_name);
+            self.emit(NameUpdated { old_name: old_name, new_name: self.erc721.name() });
+        }
+
+        #[external(v0)]
+        fn update_symbol(ref self: ContractState, new_symbol: ByteArray) {
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
+            let old_symbol = self.erc721.symbol();
+            self.erc721.ERC721_symbol.write(new_symbol);
+            self
+                .emit(
+                    SymbolUpdated {
+                        old_symbol: old_symbol, new_symbol: self.erc721.symbol()
+                    }
+                );
+        }
+
+        #[external(v0)]
         fn set_base_uri(ref self: ContractState, base_uri: ByteArray) {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
             let old_uri = self.erc721._base_uri();
             self.erc721._set_base_uri(base_uri);
-            self.emit(UriUpdated { old_uri: old_uri, new_uri: self.erc721._base_uri(), });
+            self.emit(UriUpdated { old_uri: old_uri, new_uri: self.erc721._base_uri() });
         }
     }
 

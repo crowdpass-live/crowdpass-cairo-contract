@@ -6,7 +6,9 @@ pub trait ITicket721<TContractState> {
     fn initialize(ref self: TContractState, name: ByteArray, symbol: ByteArray, uri: ByteArray);
     fn pause(ref self: TContractState);
     fn unpause(ref self: TContractState);
-    fn safe_mint(ref self: TContractState, recipient: ContractAddress,);
+    fn safe_mint(ref self: TContractState, recipient: ContractAddress);
+    fn update_name(ref self: TContractState, new_name: ByteArray);
+    fn update_symbol(ref self: TContractState, new_symbol: ByteArray);
     fn set_base_uri(ref self: TContractState, base_uri: ByteArray);
     // IERC721Enumerable
     fn total_supply(self: @TContractState) -> u256;
