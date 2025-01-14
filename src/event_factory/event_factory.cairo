@@ -389,12 +389,30 @@ pub mod EventFactory {
             // assert caller is the main organizer
             assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
 
-            // update event here
+            let event_ticket = ITicket721Dispatcher {
+                contract_address: event_instance.ticket_addr
+            };
+
+            // TODO: empty string or ByteArray might not equal to "".
+            let empty_str = "";
+            // update event ticket
+            if name != empty_str || name != event_ticket.name() {
+                event_ticket.update_name(name);
+            }
+            if symbol != empty_str || symbol != event_ticket.symbol() {
+                event_ticket.update_symbol(symbol);
+            }
+            if uri != empty_str || uri != event_ticket.base_uri() {
+                event_ticket.set_base_uri(uri);
+            }
+            // update event instance
+            event_instance.description = description;
+            event_instance.location = location;
+            event_instance.updated_at = get_block_timestamp();
             event_instance.start_date = start_date;
             event_instance.end_date = end_date;
             event_instance.total_tickets = total_tickets;
             event_instance.ticket_price = ticket_price;
-            event_instance.updated_at = get_block_timestamp();
 
             self.events.entry(event_id).write(event_instance);
 
