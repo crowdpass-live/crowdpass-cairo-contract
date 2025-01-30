@@ -6,9 +6,9 @@ pub mod EventFactory {
     //////////////////////////////////////////////////////////////////////////*//
     use core::{num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait};
     use starknet::{
-        ContractAddress, SyscallResultTrait, class_hash::ClassHash, get_block_timestamp,
-        get_caller_address, get_contract_address, get_tx_info, syscalls::deploy_syscall,
+        ContractAddress, class_hash::ClassHash, syscalls::deploy_syscall, SyscallResultTrait,
         storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry},
+        get_block_timestamp, get_caller_address, get_contract_address, get_tx_info,
     };
     use openzeppelin::{
         introspection::src5::SRC5Component,
@@ -259,9 +259,16 @@ pub mod EventFactory {
         }
     }
 
+    //*//////////////////////////////////////////////////////////////////////////
+    //                            ACCESS CONTROL IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl AccessControlImpl =
         AccessControlComponent::AccessControlImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                         ACCESS CONTROL CAMEL IMPL
+    //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
     impl AccessControlCamelImpl =
         AccessControlComponent::AccessControlCamelImpl<ContractState>;
@@ -283,6 +290,9 @@ pub mod EventFactory {
     impl AccessControlInternalImpl = AccessControlComponent::InternalImpl<ContractState>;
     impl UpgradeableInternalImpl = UpgradeableComponent::InternalImpl<ContractState>;
 
+    //*//////////////////////////////////////////////////////////////////////////
+    //                             PRIVATE FUNCTIONS
+    //////////////////////////////////////////////////////////////////////////*//
     #[generate_trait]
     impl PrivateImpl of PrivateTrait {
         fn _gen_event_hash(self: @ContractState, event_id: u256) -> felt252 {
@@ -473,7 +483,7 @@ pub mod EventFactory {
             };
             // verify if caller has enough strk token for the ticket_price
             assert(
-                strk_token.balance_of(buyer) > event_instance.ticket_price,
+                strk_token.balance_of(buyer) >= event_instance.ticket_price,
                 Errors::INSUFFICIENT_BALANCE
             );
 
