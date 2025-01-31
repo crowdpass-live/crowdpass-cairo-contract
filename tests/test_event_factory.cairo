@@ -47,17 +47,27 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
 
     start_cheat_caller_address(event_factory_address, ACCOUNT.try_into().unwrap());
 
+    let name = "Test Event";
+    let symbol = "TEST";
+    let uri = "ipfs://test";
+    let description = "Test Description";
+    let location = "Test Location";
+    let start_date: u64 = get_block_timestamp();
+    let end_date: u64 = start_date + 86400; // 1 day later
+    let total_tickets: u256 = 100;
+    let ticket_price: u256 = 1000000000000000000; // 1 token 
+
     let event = event_factory
         .create_event(
-            "Event Name",
-            "Event Symbol",
-            "Event URI",
-            "Event Description",
-            "Event Location",
-            get_block_timestamp(),
-            get_block_timestamp() + 86400,
-            100,
-            100
+            name,
+            symbol,
+            uri,
+            description,
+            location,
+            start_date,
+            end_date,
+            total_tickets,
+            ticket_price
         );
 
     let evt_addr: ContractAddress = event.ticket_addr;
@@ -74,16 +84,17 @@ fn test_create_event() {
     // assert(event, 'Event creation failed');
     assert_eq!(event_factory.get_event_count(), 1);
     assert_eq!(event.id, 1);
+    assert_eq!(event_ticket.name(), "Test Event");
+    assert_eq!(event_ticket.symbol(), "TEST");
+    assert_eq!(event_ticket.base_uri(), "ipfs://test-uri-metadata-hash");
     assert_eq!(event.organizer, ACCOUNT.try_into().unwrap());
-    assert_eq!(event.description, "Event Description");
-    assert_eq!(event.location, "Event Location");
+    assert_eq!(event.description, "Test Description");
+    assert_eq!(event.location, "Test Location");
     assert(event.start_date <= get_block_timestamp(), 'Invalid start date');
-    assert(event.end_date <= get_block_timestamp() + 86400, 'Invalid end date');
+    assert(event.end_date == event.start_date + 86400, 'Invalid end date');
     assert_eq!(event.total_tickets, 100);
-    assert_eq!(event.ticket_price, 100);
+    assert_eq!(event.ticket_price, 1000000000000000000);
     assert_eq!(event_ticket.total_supply(), 0);
-    assert_eq!(event_ticket.name(), "Event Name");
-    assert_eq!(event_ticket.symbol(), "Event Symbol");
 }
 
 #[test]
