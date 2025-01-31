@@ -19,7 +19,7 @@ openzeppelin = "0.17.0"
 token_bound_accounts = "0.3.1"
 
 [dev-dependencies]
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.35.1" }
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.34.0" }
 assert_macros = "2.8.2"
 
 [[target.starknet-contract]]
