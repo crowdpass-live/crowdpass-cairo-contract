@@ -490,7 +490,7 @@ pub mod EventFactory {
             let event_ticket_address = event_instance.ticket_addr;
             let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
             let ticket_id = event_ticket.total_supply() + 1;
-            assert(event_instance.total_tickets <= ticket_id, Errors::EVENT_SOLD_OUT);
+            assert(ticket_id <= event_instance.total_tickets, Errors::EVENT_SOLD_OUT);
 
             let event_ticket_price = event_instance.ticket_price;
 
