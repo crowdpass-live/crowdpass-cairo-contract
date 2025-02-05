@@ -10,17 +10,17 @@ authors = [
     "Olwakemi Atoyebi <[atokemmy@gmail.com]>",
 ]
 homepage = "https://www.crowdpass.live/"
-cairo_version = "2.8.2"
+cairo_version = "2.8.4"
 keywords = ["crowdpass", "event", "cairo", "contracts", "starknet", "standards"]
 
 [dependencies]
-starknet = "2.8.2"
-openzeppelin = "0.17.0"
+starknet = "2.8.4"
+openzeppelin = "^0.17.0"
 token_bound_accounts = "0.3.1"
 
 [dev-dependencies]
 snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.34.0" }
-assert_macros = "2.8.2"
+assert_macros = "2.8.4"
 
 [[target.starknet-contract]]
 sierra = true
