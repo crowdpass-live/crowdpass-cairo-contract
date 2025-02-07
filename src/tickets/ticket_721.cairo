@@ -4,7 +4,9 @@ pub mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use starknet::{ContractAddress, ClassHash, storage::StoragePointerWriteAccess,};
+    use starknet::{
+        ContractAddress, ClassHash, storage::{StoragePointerReadAccess, StoragePointerWriteAccess},
+    };
     use openzeppelin::{
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
@@ -15,6 +17,7 @@ pub mod Ticket721 {
         },
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
+    use crowd_pass::errors::Errors;
 
     //*//////////////////////////////////////////////////////////////////////////
     //                                COMPONENTS
@@ -102,6 +105,7 @@ pub mod Ticket721 {
         initializable: InitializableComponent::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
+        event_started: bool,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -181,7 +185,81 @@ pub mod Ticket721 {
         }
 
         #[external(v0)]
-        fn base_uri(self: @ContractState) -> ByteArray {
+        fn start_event(ref self: ContractState) {
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
+            self.event_started.write(true);
+        }
+
+        // ERC721 Functions
+
+        #[external(v0)]
+        fn balance_of(self: @ContractState, account: ContractAddress) -> u256 {
+            self.erc721.balance_of(account)
+        }
+
+        #[external(v0)]
+        fn owner_of(self: @ContractState, token_id: u256) -> ContractAddress {
+            self.erc721.owner_of(token_id)
+        }
+
+        #[external(v0)]
+        fn safe_transfer_from(
+            ref self: ContractState,
+            from: ContractAddress,
+            to: ContractAddress,
+            token_id: u256,
+            data: Span<felt252>,
+        ) {
+            assert(!self.event_started.read(), Errors::EVENT_STARTED);
+            self.erc721.safe_transfer_from(from, to, token_id, data);
+        }
+
+        #[external(v0)]
+        fn transfer_from(
+            ref self: ContractState, from: ContractAddress, to: ContractAddress, token_id: u256,
+        ) {
+            assert(!self.event_started.read(), Errors::EVENT_STARTED);
+            self.erc721.transfer_from(from, to, token_id);
+        }
+
+        #[external(v0)]
+        fn approve(ref self: ContractState, to: ContractAddress, token_id: u256) {
+            self.erc721.approve(to, token_id);
+        }
+
+        #[external(v0)]
+        fn set_approval_for_all(
+            ref self: ContractState, operator: ContractAddress, approved: bool,
+        ) {
+            self.erc721.set_approval_for_all(operator, approved);
+        }
+
+        #[external(v0)]
+        fn get_approved(self: @ContractState, token_id: u256) -> ContractAddress {
+            self.erc721.get_approved(token_id)
+        }
+
+        #[external(v0)]
+        fn is_approved_for_all(
+            self: @ContractState, owner: ContractAddress, operator: ContractAddress,
+        ) -> bool {
+            self.erc721.is_approved_for_all(owner, operator)
+        }
+
+        // ERC721 Metadata Functions
+
+        #[external(v0)]
+        fn name(self: @ContractState) -> ByteArray {
+            self.erc721.name()
+        }
+
+        #[external(v0)]
+        fn symbol(self: @ContractState) -> ByteArray {
+            self.erc721.symbol()
+        }
+
+        #[external(v0)]
+        fn token_uri(self: @ContractState, token_id: u256) -> ByteArray {
             self.erc721._base_uri()
         }
     }
@@ -198,10 +276,17 @@ pub mod Ticket721 {
     }
 
     //*//////////////////////////////////////////////////////////////////////////
-    //                             ERC721 MIXIN IMPL
+    //                           ERC721 CAMEL ONLY IMPL
     //////////////////////////////////////////////////////////////////////////*//
     #[abi(embed_v0)]
-    impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
+    impl ERC721CamelOnlyImpl = ERC721Component::ERC721CamelOnlyImpl<ContractState>;
+
+    //*//////////////////////////////////////////////////////////////////////////
+    //                           ERC721 ENUMERABLE IMPL
+    //////////////////////////////////////////////////////////////////////////*//
+    #[abi(embed_v0)]
+    impl ERC721EnumerableImpl =
+        ERC721EnumerableComponent::ERC721EnumerableImpl<ContractState>;
 
     //*//////////////////////////////////////////////////////////////////////////
     //                               PAUSABLE IMPL
@@ -222,13 +307,6 @@ pub mod Ticket721 {
     #[abi(embed_v0)]
     impl AccessControlCamelImpl =
         AccessControlComponent::AccessControlCamelImpl<ContractState>;
-
-    //*//////////////////////////////////////////////////////////////////////////
-    //                           ERC721 ENUMERABLE IMPL
-    //////////////////////////////////////////////////////////////////////////*//
-    #[abi(embed_v0)]
-    impl ERC721EnumerableImpl =
-        ERC721EnumerableComponent::ERC721EnumerableImpl<ContractState>;
 
     //*//////////////////////////////////////////////////////////////////////////
     //                                ERC2981 IMPL
@@ -274,6 +352,8 @@ pub mod Ticket721 {
     }
 
     /// Internal Component Functions
+    impl ERC721Impl = ERC721Component::ERC721Impl<ContractState>;
+    impl ERC721MetadataImpl = ERC721Component::ERC721MetadataImpl<ContractState>;
     impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
     impl PausableInternalImpl = PausableComponent::InternalImpl<ContractState>;
     impl AccessControlInternalImpl = AccessControlComponent::InternalImpl<ContractState>;
