@@ -191,7 +191,7 @@ pub mod Ticket721 {
         }
 
         #[external(v0)]
-        fn is_event_started(self: @ContractState) -> bool {
+        fn has_event_started(self: @ContractState) -> bool {
             self.event_started.read()
         }
 
