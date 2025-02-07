@@ -190,6 +190,11 @@ pub mod Ticket721 {
             self.event_started.write(true);
         }
 
+        #[external(v0)]
+        fn is_event_started(self: @ContractState) -> bool {
+            self.event_started.read()
+        }
+
         // ERC721 Functions
 
         #[external(v0)]
