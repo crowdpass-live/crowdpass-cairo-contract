@@ -11,6 +11,7 @@ pub trait ITicket721<TContractState> {
     fn update_symbol(ref self: TContractState, new_symbol: ByteArray);
     fn set_base_uri(ref self: TContractState, base_uri: ByteArray);
     fn base_uri(self: @TContractState) -> ByteArray;
+    fn start_event(ref self: TContractState);
     // IERC721Enumerable
     fn total_supply(self: @TContractState) -> u256;
     fn token_by_index(self: @TContractState, index: u256) -> u256;
