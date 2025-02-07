@@ -27,7 +27,7 @@ pub mod EventFactory {
             i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait},
         },
     };
-
+    pub const E18: u256 = 1000000000000000000;
     pub const STRK_TOKEN_ADDRESS: felt252 =
         0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
 
@@ -55,6 +55,7 @@ pub mod EventFactory {
         EventCanceled: EventCanceled,
         TicketPurchased: TicketPurchased,
         TicketRecliamed: TicketRecliamed,
+        AttendeeCheckedIn: AttendeeCheckedIn,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -99,6 +100,15 @@ pub mod EventFactory {
         amount: u256
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct AttendeeCheckedIn {
+        #[key]
+        event_id: u256,
+        #[key]
+        attendee: ContractAddress,
+        time: u64
+    }
+
     //*//////////////////////////////////////////////////////////////////////////
     //                                  STORAGE
     //////////////////////////////////////////////////////////////////////////*//
@@ -110,12 +120,13 @@ pub mod EventFactory {
         accesscontrol: AccessControlComponent::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
-        event_count: u256,
-        events: Map<u256, EventData>,
-        event_ticket_balance: Map<u256, u256>,
         ticket_721_class_hash: felt252,
         tba_registry_class_hash: felt252,
         tba_accountv3_class_hash: felt252,
+        event_count: u256,
+        events: Map<u256, EventData>,
+        event_ticket_balance: Map<u256, u256>,
+        event_attendance: Map<u256, Map<ContractAddress, bool>>,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -232,6 +243,13 @@ pub mod EventFactory {
         fn purchase_ticket(ref self: ContractState, event_id: u256) -> ContractAddress {
             let tba_address = self._purchase_ticket(event_id);
             tba_address
+        }
+
+        fn check_in(ref self: ContractState, event_id: u256, attendee: ContractAddress) -> bool {
+            let event_hash = self._gen_event_hash(event_id);
+            self.accesscontrol.assert_only_role(event_hash);
+            self._check_in(event_id, attendee);
+            true
         }
 
         // -------------- GETTER FUNCTIONS -----------------------
@@ -481,11 +499,12 @@ pub mod EventFactory {
             let strk_token = IERC20Dispatcher {
                 contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
             };
-            // verify if caller has enough strk token for the ticket_price
-            assert(
-                strk_token.balance_of(buyer) >= event_instance.ticket_price,
-                Errors::INSUFFICIENT_BALANCE
-            );
+
+            // verify if caller has enough strk token for the ticket_price + 3% fee
+            let _ticket_price = event_instance.ticket_price * E18;
+            let _ticket_price_ = _ticket_price + ((_ticket_price * 3) / 100);
+            let ticket_price_ = _ticket_price_ / E18;
+            assert(strk_token.balance_of(buyer) >= ticket_price_, Errors::INSUFFICIENT_BALANCE);
 
             let event_ticket_address = event_instance.ticket_addr;
             let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
@@ -521,6 +540,33 @@ pub mod EventFactory {
                 );
 
             tba_address
+        }
+
+        fn _check_in(ref self: ContractState, event_id: u256, attendee: ContractAddress) {
+            let event_instance = self.events.entry(event_id).read();
+            let event_ticket_address = event_instance.ticket_addr;
+            let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
+
+            // assert event has started
+            assert(event_instance.start_date <= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
+
+            if !event_ticket.has_event_started() {
+                event_ticket.start_event();
+            }
+
+            // assert user has a ticket
+            assert(event_ticket.balance_of(attendee) > 0, Errors::NOT_TICKET_HOLDER);
+
+            // checkin attendee
+            self.event_attendance.entry(event_id).entry(attendee).write(true);
+
+            // emit event for ticket check in
+            self
+                .emit(
+                    AttendeeCheckedIn {
+                        event_id: event_id, attendee: attendee, time: get_block_timestamp()
+                    }
+                );
         }
 
         fn _deploy_tba(

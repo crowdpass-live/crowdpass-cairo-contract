@@ -32,6 +32,7 @@ pub trait IEventFactory<TContractState> {
     fn add_organizer(ref self: TContractState, event_id: u256, organizer: ContractAddress);
     fn remove_organizer(ref self: TContractState, event_id: u256, organizer: ContractAddress);
     fn purchase_ticket(ref self: TContractState, event_id: u256) -> ContractAddress;
+    fn check_in(ref self: TContractState, event_id: u256, attendee: ContractAddress) -> bool;
     fn get_all_events(self: @TContractState) -> Array<EventData>;
     fn get_event(self: @TContractState, event_id: u256) -> EventData;
     fn get_event_count(self: @TContractState) -> u256;
