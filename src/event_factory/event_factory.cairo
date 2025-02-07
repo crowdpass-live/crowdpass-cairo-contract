@@ -56,6 +56,7 @@ pub mod EventFactory {
         TicketPurchased: TicketPurchased,
         TicketRecliamed: TicketRecliamed,
         AttendeeCheckedIn: AttendeeCheckedIn,
+        EventPayoutCollected: EventPayoutCollected,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -107,6 +108,15 @@ pub mod EventFactory {
         #[key]
         attendee: ContractAddress,
         time: u64
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct EventPayoutCollected {
+        #[key]
+        event_id: u256,
+        #[key]
+        organizer: ContractAddress,
+        amount: u256
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -250,6 +260,10 @@ pub mod EventFactory {
             self.accesscontrol.assert_only_role(event_hash);
             self._check_in(event_id, attendee);
             true
+        }
+
+        fn collect_event_payout(ref self: ContractState, event_id: u256) {
+            self._collect_event_payout(event_id);
         }
 
         // -------------- GETTER FUNCTIONS -----------------------
@@ -548,7 +562,7 @@ pub mod EventFactory {
             let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
 
             // assert event has started
-            assert(event_instance.start_date <= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
+            assert(event_instance.start_date >= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
 
             if !event_ticket.has_event_started() {
                 event_ticket.start_event();
@@ -565,6 +579,33 @@ pub mod EventFactory {
                 .emit(
                     AttendeeCheckedIn {
                         event_id: event_id, attendee: attendee, time: get_block_timestamp()
+                    }
+                );
+        }
+
+        fn _collect_event_payout(ref self: ContractState, event_id: u256) {
+            self.accesscontrol.assert_only_role(self._gen_main_organizer_role(event_id));
+            let event_instance = self.events.entry(event_id).read();
+
+            assert(event_instance.end_date >= get_block_timestamp(), Errors::EVENT_NOT_ENDED);
+
+            // let event_ticket_address = event_instance.ticket_addr;
+            // let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
+
+            let event_ticket_balance = self.event_ticket_balance.entry(event_id).read();
+            self.event_ticket_balance.entry(event_id).write(0);
+
+            let strk_token = IERC20Dispatcher {
+                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
+            };
+
+            let organizer = get_caller_address();
+            strk_token.transfer(organizer, event_ticket_balance);
+
+            self
+                .emit(
+                    EventPayoutCollected {
+                        event_id: event_id, organizer: organizer, amount: event_ticket_balance
                     }
                 );
         }
