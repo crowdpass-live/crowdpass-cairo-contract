@@ -132,6 +132,15 @@ fn test_remove_organizer() {
 
     event_factory.add_organizer(1, ACCOUNT1.try_into().unwrap());
 }
+
+#[test]
+#[fork("SEPOLIA_LATEST")]
+fn test_purchase_ticket() {
+    let (event_factory_address, _, _) = create_event();
+    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
+
+    event_factory.add_organizer(1, ACCOUNT1.try_into().unwrap());
+}
 // #[test]
 // fn test_increase_balance() {
 //     let contract_address = deploy_contract("EventFactory");
