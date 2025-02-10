@@ -135,7 +135,8 @@ pub mod EventFactory {
         tba_accountv3_class_hash: felt252,
         event_count: u256,
         events: Map<u256, EventData>,
-        event_ticket_balance: Map<u256, u256>,
+        event_balance: Map<u256, u256>,
+        crowd_pass_balance: Map<u256, u256>,
         event_attendance: Map<u256, Map<ContractAddress, bool>>,
     }
 
@@ -509,7 +510,9 @@ pub mod EventFactory {
             assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
 
             let mut event_instance: EventData = self.events.entry(event_id).read();
+            // assert event is not canceled
             assert(!event_instance.is_canceled, Errors::EVENT_CANCELED);
+            // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
 
             let strk_token = IERC20Dispatcher {
@@ -517,26 +520,32 @@ pub mod EventFactory {
             };
 
             // verify if caller has enough strk token for the ticket_price + 3% fee
-            let _ticket_price = event_instance.ticket_price * E18;
-            let _ticket_price_ = _ticket_price + ((_ticket_price * 3) / 100);
-            let ticket_price_ = _ticket_price_ / E18;
-            assert(strk_token.balance_of(buyer) >= ticket_price_, Errors::INSUFFICIENT_BALANCE);
+            let ticket_price = event_instance.ticket_price;
+            let ticket_price_padded = ticket_price * E18;
+            let ticket_price_padded_plus_fee = ticket_price_padded + ((ticket_price_padded * 3) / 100);
+            let ticket_price_plus_fee = ticket_price_padded_plus_fee / E18;
+            assert(strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE);
 
             let event_ticket_address = event_instance.ticket_addr;
             let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
             let ticket_id = event_ticket.total_supply() + 1;
             assert(ticket_id <= event_instance.total_tickets, Errors::EVENT_SOLD_OUT);
 
-            let event_ticket_price = event_instance.ticket_price;
-
             // transfer the ticket price to the contract
-            strk_token.transfer_from(buyer, get_contract_address(), event_ticket_price);
+            strk_token.transfer_from(buyer, get_contract_address(), ticket_price_plus_fee);
 
-            let current_ticket_balance = self.event_ticket_balance.entry(event_id).read();
+            let current_event_balance = self.event_balance.entry(event_id).read();
             self
-                .event_ticket_balance
+                .event_balance
                 .entry(event_id)
-                .write(current_ticket_balance + event_ticket_price);
+                .write(current_event_balance + ticket_price);
+
+            let crowd_pass_fee = ticket_price_plus_fee - ticket_price;
+            let current_crowd_pass_balance = self.crowd_pass_balance.entry(event_id).read();
+            self
+                .crowd_pass_balance
+                .entry(event_id)
+                .write(current_crowd_pass_balance + crowd_pass_fee);
 
             // mint the nft ticket to the user
             event_ticket.safe_mint(buyer);
@@ -551,7 +560,7 @@ pub mod EventFactory {
                         ticket_id: ticket_id,
                         buyer: buyer,
                         tba_address: tba_address,
-                        ticket_price: event_ticket_price
+                        ticket_price: ticket_price
                     }
                 );
 
@@ -593,22 +602,22 @@ pub mod EventFactory {
             assert(!event_instance.is_canceled, Errors::EVENT_CANCELED);
             assert(event_instance.end_date >= get_block_timestamp(), Errors::EVENT_NOT_ENDED);
 
-            let event_ticket_balance = self.event_ticket_balance.entry(event_id).read();
-            self.event_ticket_balance.entry(event_id).write(0);
-            let event_ticket_balance_padded = event_ticket_balance * E18;
-            let event_ticket_balance_padded_minus_fee = event_ticket_balance_padded
-                - ((event_ticket_balance_padded * 3) / 100);
-            let event_ticket_balance_minus_fee = event_ticket_balance_padded_minus_fee / E18;
+            let event_balance = self.event_balance.entry(event_id).read();
+            self.event_balance.entry(event_id).write(0);
+            let event_balance_padded = event_balance * E18;
+            let event_balance_padded_minus_fee = event_balance_padded
+                - ((event_balance_padded * 3) / 100);
+            let event_balance_minus_fee = event_balance_padded_minus_fee / E18;
 
             IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
-                .transfer(organizer, event_ticket_balance_minus_fee);
+                .transfer(organizer, event_balance_minus_fee);
 
             self
                 .emit(
                     EventPayoutCollected {
                         event_id: event_id,
                         organizer: organizer,
-                        amount: event_ticket_balance_minus_fee
+                        amount: event_balance_minus_fee
                     }
                 );
         }
