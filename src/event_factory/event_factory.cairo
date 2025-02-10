@@ -609,6 +609,10 @@ pub mod EventFactory {
                 - ((event_balance_padded * 3) / 100);
             let event_balance_minus_fee = event_balance_padded_minus_fee / E18;
 
+            let crowd_pass_fee = event_balance - event_balance_minus_fee;
+            let crowd_pass_balance = self.crowd_pass_balance.entry(event_id).read();
+            self.crowd_pass_balance.entry(event_id).write(crowd_pass_balance + crowd_pass_fee);
+
             IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
                 .transfer(organizer, event_balance_minus_fee);
 
