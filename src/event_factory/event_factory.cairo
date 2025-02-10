@@ -263,6 +263,8 @@ pub mod EventFactory {
         }
 
         fn collect_event_payout(ref self: ContractState, event_id: u256) {
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            self.accesscontrol.assert_only_role(main_organizer_role);
             self._collect_event_payout(event_id);
         }
 
@@ -584,7 +586,6 @@ pub mod EventFactory {
         }
 
         fn _collect_event_payout(ref self: ContractState, event_id: u256) {
-            self.accesscontrol.assert_only_role(self._gen_main_organizer_role(event_id));
             let event_instance = self.events.entry(event_id).read();
 
             assert(event_instance.end_date >= get_block_timestamp(), Errors::EVENT_NOT_ENDED);
