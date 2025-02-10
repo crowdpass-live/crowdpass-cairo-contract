@@ -593,12 +593,12 @@ pub mod EventFactory {
             assert(!event_instance.is_canceled, Errors::EVENT_CANCELED);
             assert(event_instance.end_date >= get_block_timestamp(), Errors::EVENT_NOT_ENDED);
 
-            let event_ticket_balance_padded = self.event_ticket_balance.entry(event_id).read()
-                * E18;
+            let event_ticket_balance = self.event_ticket_balance.entry(event_id).read();
+            self.event_ticket_balance.entry(event_id).write(0);
+            let event_ticket_balance_padded = event_ticket_balance * E18;
             let event_ticket_balance_padded_minus_fee = event_ticket_balance_padded
                 - ((event_ticket_balance_padded * 3) / 100);
             let event_ticket_balance_minus_fee = event_ticket_balance_padded_minus_fee / E18;
-            self.event_ticket_balance.entry(event_id).write(0);
 
             IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
                 .transfer(organizer, event_ticket_balance_minus_fee);
