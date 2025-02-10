@@ -55,8 +55,8 @@ pub mod EventFactory {
         EventCanceled: EventCanceled,
         TicketPurchased: TicketPurchased,
         TicketRecliamed: TicketRecliamed,
-        AttendeeCheckedIn: AttendeeCheckedIn,
-        EventPayoutCollected: EventPayoutCollected,
+        CheckedIn: CheckedIn,
+        PayoutCollected: PayoutCollected,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -102,7 +102,7 @@ pub mod EventFactory {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct AttendeeCheckedIn {
+    struct CheckedIn {
         #[key]
         event_id: u256,
         #[key]
@@ -111,7 +111,7 @@ pub mod EventFactory {
     }
 
     #[derive(Drop, starknet::Event)]
-    struct EventPayoutCollected {
+    struct PayoutCollected {
         #[key]
         event_id: u256,
         #[key]
@@ -588,7 +588,7 @@ pub mod EventFactory {
             // emit event for ticket check in
             self
                 .emit(
-                    AttendeeCheckedIn {
+                    CheckedIn {
                         event_id: event_id, attendee: attendee, time: get_block_timestamp()
                     }
                 );
@@ -618,7 +618,7 @@ pub mod EventFactory {
 
             self
                 .emit(
-                    EventPayoutCollected {
+                    PayoutCollected {
                         event_id: event_id,
                         organizer: organizer,
                         amount: event_balance_minus_fee
