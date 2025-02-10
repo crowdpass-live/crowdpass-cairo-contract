@@ -566,7 +566,7 @@ pub mod EventFactory {
             // assert event has started
             assert(event_instance.start_date >= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
 
-            if !event_ticket.has_event_started() {
+            if !event_ticket.event_started() {
                 event_ticket.start_event();
             }
 
@@ -587,24 +587,28 @@ pub mod EventFactory {
 
         fn _collect_event_payout(ref self: ContractState, event_id: u256) {
             let event_instance = self.events.entry(event_id).read();
+            let organizer = get_caller_address();
 
+            assert(event_instance.organizer == organizer, Errors::NOT_EVENT_ORGANIZER);
             assert(!event_instance.is_canceled, Errors::EVENT_CANCELED);
             assert(event_instance.end_date >= get_block_timestamp(), Errors::EVENT_NOT_ENDED);
 
-            let event_ticket_balance_padded = self.event_ticket_balance.entry(event_id).read() * E18;
-            let event_ticket_balance_padded_minus_fee = event_ticket_balance_padded - ((event_ticket_balance_padded * 3) / 100);
+            let event_ticket_balance_padded = self.event_ticket_balance.entry(event_id).read()
+                * E18;
+            let event_ticket_balance_padded_minus_fee = event_ticket_balance_padded
+                - ((event_ticket_balance_padded * 3) / 100);
             let event_ticket_balance_minus_fee = event_ticket_balance_padded_minus_fee / E18;
             self.event_ticket_balance.entry(event_id).write(0);
 
-            let organizer = get_caller_address();
-            IERC20Dispatcher {
-                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
-            }.transfer(organizer, event_ticket_balance_minus_fee);
+            IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
+                .transfer(organizer, event_ticket_balance_minus_fee);
 
             self
                 .emit(
                     EventPayoutCollected {
-                        event_id: event_id, organizer: organizer, amount: event_ticket_balance_minus_fee
+                        event_id: event_id,
+                        organizer: organizer,
+                        amount: event_ticket_balance_minus_fee
                     }
                 );
         }
