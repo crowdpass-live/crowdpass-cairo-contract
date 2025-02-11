@@ -49,7 +49,7 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
 
     let name = "Test Event";
     let symbol = "TEST";
-    let uri = "ipfs://test";
+    let uri = "ipfs://test-uri-metadata-hash";
     let description = "Test Description";
     let location = "Test Location";
     let start_date: u64 = get_block_timestamp();
@@ -70,31 +70,30 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
             ticket_price
         );
 
-    let evt_addr: ContractAddress = event.ticket_addr;
-    let event_ticket = ITicket721Dispatcher { contract_address: evt_addr };
-    (event_factory_address, event, event_ticket)
+    let ticket_address: ContractAddress = event.ticket_address;
+    let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+    (event_factory_address, event, ticket)
 }
 
 #[test]
 #[fork("SEPOLIA_LATEST")]
 fn test_create_event() {
-    let (event_factory_address, event, event_ticket) = create_event();
+    let (event_factory_address, event, ticket) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
-    // assert(event, 'Event creation failed');
-    assert_eq!(event_factory.get_event_count(), 1);
-    assert_eq!(event.id, 1);
-    assert_eq!(event_ticket.name(), "Test Event");
-    assert_eq!(event_ticket.symbol(), "TEST");
-    assert_eq!(event_ticket.base_uri(), "ipfs://test-uri-metadata-hash");
-    assert_eq!(event.organizer, ACCOUNT.try_into().unwrap());
-    assert_eq!(event.description, "Test Description");
-    assert_eq!(event.location, "Test Location");
+    assert(event_factory.get_event_count() == 1, 'Invalid event count');
+    assert(event.id == 1, 'Invalid event id');
+    assert(ticket.name() == "Test Event", 'Invalid event name');
+    assert(ticket.symbol() == "TEST", 'Invalid event symbol');
+    assert(ticket.base_uri() == "ipfs://test-uri-metadata-hash", 'Invalid event uri');
+    assert(event.organizer == ACCOUNT.try_into().unwrap(), 'Invalid organizer');
+    assert(event.description == "Test Description", 'Invalid description');
+    assert(event.location == "Test Location", 'Invalid location');
     assert(event.start_date <= get_block_timestamp(), 'Invalid start date');
     assert(event.end_date == event.start_date + 86400, 'Invalid end date');
-    assert_eq!(event.total_tickets, 100);
-    assert_eq!(event.ticket_price, 1000000000000000000);
-    assert_eq!(event_ticket.total_supply(), 0);
+    assert(event.total_tickets == 100, 'Invalid total tickets');
+    assert(event.ticket_price == 1000000000000000000, 'Invalid ticket price');
+    assert(ticket.total_supply() == 0, 'Invalid total supply');
 }
 
 #[test]
@@ -141,6 +140,7 @@ fn test_purchase_ticket() {
 
     event_factory.add_organizer(1, ACCOUNT1.try_into().unwrap());
 }
+
 // #[test]
 // fn test_increase_balance() {
 //     let contract_address = deploy_contract("EventFactory");
