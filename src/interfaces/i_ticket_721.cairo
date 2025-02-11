@@ -6,6 +6,7 @@ pub trait ITicket721<TContractState> {
     fn initialize(ref self: TContractState, name: ByteArray, symbol: ByteArray, uri: ByteArray);
     fn pause(ref self: TContractState);
     fn unpause(ref self: TContractState);
+    fn burn(ref self: TContractState, token_id: u256);
     fn safe_mint(ref self: TContractState, recipient: ContractAddress);
     fn update_name(ref self: TContractState, new_name: ByteArray);
     fn update_symbol(ref self: TContractState, new_symbol: ByteArray);

@@ -4,7 +4,7 @@ pub mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use starknet::{ContractAddress, ClassHash, storage::{StoragePointerWriteAccess},};
+    use starknet::{ContractAddress, ClassHash, storage::{StoragePointerWriteAccess}, get_caller_address};
     use openzeppelin::{
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
@@ -15,6 +15,7 @@ pub mod Ticket721 {
         },
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
+    use core::num::traits::Zero;
 
     //*//////////////////////////////////////////////////////////////////////////
     //                                COMPONENTS
@@ -147,6 +148,11 @@ pub mod Ticket721 {
         fn unpause(ref self: ContractState) {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
             self.pausable.unpause();
+        }
+
+        #[external(v0)]
+        fn burn(ref self: ContractState, token_id: u256) {
+            self.erc721.update(Zero::zero(), token_id, get_caller_address());
         }
 
         #[external(v0)]
