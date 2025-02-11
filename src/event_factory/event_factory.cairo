@@ -27,6 +27,7 @@ pub mod EventFactory {
             i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait},
         },
     };
+    
     pub const E18: u256 = 1000000000000000000;
     pub const STRK_TOKEN_ADDRESS: felt252 =
         0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
@@ -369,24 +370,24 @@ pub mod EventFactory {
             self.accesscontrol.set_role_admin(event_hash, main_organizer_role);
 
             // deploy ticket721 contract
-            let event_ticket = deploy_syscall(
+            let ticket = deploy_syscall(
                 self.ticket_721_class_hash.read().try_into().unwrap(),
                 event_hash,
                 array![address_this.into(), address_this.into()].span(),
                 true,
             );
 
-            let (event_ticket_addr, _) = event_ticket.unwrap_syscall();
+            let (ticket_address, _) = ticket.unwrap_syscall();
 
             // initialize ticket721 contract
-            ITicket721Dispatcher { contract_address: event_ticket_addr }
+            ITicket721Dispatcher { contract_address: ticket_address }
                 .initialize(name, symbol, uri,);
 
             // new event struct instance
             let event_instance = EventData {
                 id: event_count,
                 organizer: caller,
-                ticket_addr: event_ticket_addr,
+                ticket_address: ticket_address,
                 description: description,
                 location: location,
                 created_at: get_block_timestamp(),
@@ -408,7 +409,7 @@ pub mod EventFactory {
             self
                 .emit(
                     EventCreated {
-                        id: event_count, organizer: caller, ticket_address: event_ticket_addr
+                        id: event_count, organizer: caller, ticket_address: ticket_address
                     }
                 );
 
@@ -434,21 +435,19 @@ pub mod EventFactory {
             // assert caller is the main organizer
             assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
 
-            let event_ticket = ITicket721Dispatcher {
-                contract_address: event_instance.ticket_addr
-            };
+            let ticket = ITicket721Dispatcher { contract_address: event_instance.ticket_address };
 
             // TODO: empty string or ByteArray might not equal to "".
             let empty_str = "";
             // update event ticket
-            if name != empty_str || name != event_ticket.name() {
-                event_ticket.update_name(name);
+            if name != empty_str || name != ticket.name() {
+                ticket.update_name(name);
             }
-            if symbol != empty_str || symbol != event_ticket.symbol() {
-                event_ticket.update_symbol(symbol);
+            if symbol != empty_str || symbol != ticket.symbol() {
+                ticket.update_symbol(symbol);
             }
-            if uri != empty_str || uri != event_ticket.base_uri() {
-                event_ticket.set_base_uri(uri);
+            if uri != empty_str || uri != ticket.base_uri() {
+                ticket.set_base_uri(uri);
             }
             // update event instance
             event_instance.description = description;
@@ -515,30 +514,30 @@ pub mod EventFactory {
             // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
 
-            let strk_token = IERC20Dispatcher {
-                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
-            };
-
             // verify if caller has enough strk token for the ticket_price + 3% fee
             let ticket_price = event_instance.ticket_price;
             let ticket_price_padded = ticket_price * E18;
-            let ticket_price_padded_plus_fee = ticket_price_padded + ((ticket_price_padded * 3) / 100);
+            let ticket_price_padded_plus_fee = ticket_price_padded
+                + ((ticket_price_padded * 3) / 100);
             let ticket_price_plus_fee = ticket_price_padded_plus_fee / E18;
-            assert(strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE);
 
-            let event_ticket_address = event_instance.ticket_addr;
-            let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
-            let ticket_id = event_ticket.total_supply() + 1;
+            let strk_token = IERC20Dispatcher {
+                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
+            };
+            assert(
+                strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE
+            );
+
+            let ticket_address = event_instance.ticket_address;
+            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+            let ticket_id = ticket.total_supply() + 1;
             assert(ticket_id <= event_instance.total_tickets, Errors::EVENT_SOLD_OUT);
 
             // transfer the ticket price to the contract
             strk_token.transfer_from(buyer, get_contract_address(), ticket_price_plus_fee);
 
             let current_event_balance = self.event_balance.entry(event_id).read();
-            self
-                .event_balance
-                .entry(event_id)
-                .write(current_event_balance + ticket_price);
+            self.event_balance.entry(event_id).write(current_event_balance + ticket_price);
 
             let crowd_pass_fee = ticket_price_plus_fee - ticket_price;
             let current_crowd_pass_balance = self.crowd_pass_balance.entry(event_id).read();
@@ -548,9 +547,9 @@ pub mod EventFactory {
                 .write(current_crowd_pass_balance + crowd_pass_fee);
 
             // mint the nft ticket to the user
-            event_ticket.safe_mint(buyer);
+            ticket.safe_mint(buyer);
 
-            let tba_address = self._deploy_tba(event_ticket_address, ticket_id);
+            let tba_address = self._deploy_tba(ticket_address, ticket_id);
 
             // emit event for ticket purchase
             self
@@ -569,18 +568,18 @@ pub mod EventFactory {
 
         fn _check_in(ref self: ContractState, event_id: u256, attendee: ContractAddress) {
             let event_instance = self.events.entry(event_id).read();
-            let event_ticket_address = event_instance.ticket_addr;
-            let event_ticket = ITicket721Dispatcher { contract_address: event_ticket_address };
+            let ticket_address = event_instance.ticket_address;
+            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
 
             // assert event has started
             assert(event_instance.start_date >= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
 
-            if !event_ticket.is_paused() {
-                event_ticket.pause();
+            if !ticket.is_paused() {
+                ticket.pause();
             }
 
             // assert user has a ticket
-            assert(event_ticket.balance_of(attendee) > 0, Errors::NOT_TICKET_HOLDER);
+            assert(ticket.balance_of(attendee) > 0, Errors::NOT_TICKET_HOLDER);
 
             // checkin attendee
             self.event_attendance.entry(event_id).entry(attendee).write(true);
@@ -619,26 +618,25 @@ pub mod EventFactory {
             self
                 .emit(
                     PayoutCollected {
-                        event_id: event_id,
-                        organizer: organizer,
-                        amount: event_balance_minus_fee
+                        event_id: event_id, organizer: organizer, amount: event_balance_minus_fee
                     }
                 );
         }
 
         fn _deploy_tba(
-            self: @ContractState, event_ticket_address: ContractAddress, ticket_id: u256
+            self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
         ) -> ContractAddress {
             let tba_address = IRegistryLibraryDispatcher {
                 class_hash: self.tba_registry_class_hash.read().try_into().unwrap()
             }
                 .create_account(
                     self.tba_accountv3_class_hash.read().try_into().unwrap(),
-                    event_ticket_address,
+                    ticket_address,
                     ticket_id,
                     ticket_id.try_into().unwrap(),
                     get_tx_info().chain_id
                 );
+
             tba_address
         }
     }

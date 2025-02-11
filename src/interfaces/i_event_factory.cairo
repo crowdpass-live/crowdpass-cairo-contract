@@ -45,7 +45,7 @@ pub trait IEventFactory<TContractState> {
 pub struct EventData {
     pub id: u256,
     pub organizer: ContractAddress,
-    pub ticket_addr: ContractAddress,
+    pub ticket_address: ContractAddress,
     pub description: ByteArray,
     pub location: ByteArray,
     pub created_at: u64,
