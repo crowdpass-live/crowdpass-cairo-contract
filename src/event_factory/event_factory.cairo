@@ -296,6 +296,10 @@ pub mod EventFactory {
         fn get_event_count(self: @ContractState) -> u256 {
             self.event_count.read()
         }
+
+        fn get_event_attendance(self: @ContractState, event_id: u256) -> bool {
+            self.event_attendance.entry(event_id).entry(get_caller_address()).read()
+        }
     }
 
     //*//////////////////////////////////////////////////////////////////////////

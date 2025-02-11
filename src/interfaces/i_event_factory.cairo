@@ -37,6 +37,7 @@ pub trait IEventFactory<TContractState> {
     fn get_all_events(self: @TContractState) -> Array<EventData>;
     fn get_event(self: @TContractState, event_id: u256) -> EventData;
     fn get_event_count(self: @TContractState) -> u256;
+    fn get_event_attendance(self: @TContractState, event_id: u256) -> bool;
     // fn resale_ticket (ref self : TContractState, event_id: u32) -> bool;
 // fn refund_ticket (ref self : TContractState, event_id: u32) -> bool;
 }
