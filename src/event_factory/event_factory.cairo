@@ -575,8 +575,8 @@ pub mod EventFactory {
             // assert event has started
             assert(event_instance.start_date >= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
 
-            if !event_ticket.event_started() {
-                event_ticket.start_event();
+            if !event_ticket.is_paused() {
+                event_ticket.pause();
             }
 
             // assert user has a ticket

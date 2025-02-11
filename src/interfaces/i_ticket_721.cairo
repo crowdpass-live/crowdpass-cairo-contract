@@ -11,12 +11,15 @@ pub trait ITicket721<TContractState> {
     fn update_symbol(ref self: TContractState, new_symbol: ByteArray);
     fn set_base_uri(ref self: TContractState, base_uri: ByteArray);
     fn base_uri(self: @TContractState) -> ByteArray;
-    fn start_event(ref self: TContractState);
-    fn event_started(self: @TContractState) -> bool;
+
+    // Pausable
+    fn is_paused(self: @TContractState) -> bool;
+
     // IERC721Enumerable
     fn total_supply(self: @TContractState) -> u256;
     fn token_by_index(self: @TContractState, index: u256) -> u256;
     fn token_of_owner_by_index(self: @TContractState, owner: ContractAddress, index: u256) -> u256;
+
     /// ERC721ABI
     // IERC721
     fn balance_of(self: @TContractState, account: ContractAddress) -> u256;
