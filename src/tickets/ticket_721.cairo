@@ -4,9 +4,7 @@ pub mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use starknet::{
-        ContractAddress, ClassHash, storage::{StoragePointerWriteAccess},
-    };
+    use starknet::{ContractAddress, ClassHash, storage::{StoragePointerWriteAccess},};
     use openzeppelin::{
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
@@ -210,7 +208,7 @@ pub mod Ticket721 {
             self.upgradeable.upgrade(new_class_hash);
         }
     }
-    
+
     //*//////////////////////////////////////////////////////////////////////////
     //                                ERC721 IMPL
     //////////////////////////////////////////////////////////////////////////*//
