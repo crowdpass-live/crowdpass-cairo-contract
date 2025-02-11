@@ -152,6 +152,7 @@ pub mod Ticket721 {
 
         #[external(v0)]
         fn burn(ref self: ContractState, token_id: u256) {
+            self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
             self.erc721.update(Zero::zero(), token_id, get_caller_address());
         }
 
