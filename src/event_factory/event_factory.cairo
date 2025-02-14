@@ -17,7 +17,9 @@ pub mod EventFactory {
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
     use token_bound_accounts::{
-        interfaces::{IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait}},
+        interfaces::{
+            IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait}
+        },
         utils::array_ext::ArrayExt,
     };
     use crowd_pass::{
@@ -153,10 +155,7 @@ pub mod EventFactory {
     //                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*//
     #[constructor]
-    fn constructor(
-        ref self: ContractState,
-        default_admin: felt252,
-    ) {
+    fn constructor(ref self: ContractState, default_admin: felt252,) {
         self.accesscontrol.initializer();
         self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin.try_into().unwrap());
     }
@@ -272,7 +271,7 @@ pub mod EventFactory {
             self._collect_event_payout(event_id);
         }
 
-        fn refund_ticket (ref self : ContractState, event_id: u256, ticket_id: u256) {
+        fn refund_ticket(ref self: ContractState, event_id: u256, ticket_id: u256) {
             assert(self._refund_ticket(event_id, ticket_id), Errors::REFUND_FAILED);
         }
 
@@ -633,7 +632,7 @@ pub mod EventFactory {
                 );
         }
 
-        fn _refund_ticket (ref self : ContractState, event_id: u256, ticket_id: u256) -> bool {
+        fn _refund_ticket(ref self: ContractState, event_id: u256, ticket_id: u256) -> bool {
             let event_instance = self.events.entry(event_id).read();
             assert(event_instance.is_canceled, Errors::EVENT_NOT_CANCELED);
             let ticket_address = event_instance.ticket_address;
@@ -651,7 +650,9 @@ pub mod EventFactory {
             let current_event_balance = self.event_balance.entry(event_id).read();
             self.event_balance.entry(event_id).write(current_event_balance - ticket_price);
 
-            let success = IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
+            let success = IERC20Dispatcher {
+                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
+            }
                 .transfer(tba_address, ticket_price);
 
             success

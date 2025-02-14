@@ -4,7 +4,9 @@ pub mod Ticket721 {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
     //////////////////////////////////////////////////////////////////////////*//
-    use starknet::{ContractAddress, ClassHash, storage::{StoragePointerWriteAccess}, get_caller_address};
+    use starknet::{
+        ContractAddress, ClassHash, storage::{StoragePointerWriteAccess}, get_caller_address
+    };
     use openzeppelin::{
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         introspection::src5::SRC5Component,
