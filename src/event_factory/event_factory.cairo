@@ -563,7 +563,7 @@ pub mod EventFactory {
             // mint the nft ticket to the user
             ticket.safe_mint(buyer);
 
-            let tba_address = self._deploy_tba(ticket_address, ticket_id);
+            let tba_address = self._create_tba(ticket_address, ticket_id);
 
             // emit event for ticket purchase
             self
@@ -661,7 +661,7 @@ pub mod EventFactory {
             success
         }
 
-        fn _deploy_tba(
+        fn _create_tba(
             self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
         ) -> ContractAddress {
             let tba_address = IRegistryLibraryDispatcher {
