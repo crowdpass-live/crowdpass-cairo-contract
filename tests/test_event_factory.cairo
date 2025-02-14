@@ -17,6 +17,8 @@ const TICKET_NFT_CLASS_HASH: felt252 =
     0x02932c15f926119f4601b9914a38f7a9861effa19e3a7bfe3d14ce0528e6a908;
 const TBA_REGISTRY_CLASS_HASH: felt252 =
     0x2cbf50931c7ec9029c5188985ea5fa8aedc728d352bde12ec889c212f0e8b3;
+const TBA_REGISTRY_CONTRACT_ADDRESS: felt252 =
+    0x41f87c7b00c3fb50cc7744f896f2d3438414be33912bd24f17318c9f48523a1;
 const TBA_ACCOUNTV3_CLASS_HASH: felt252 =
     0x29d2a1b11dd97289e18042502f11356133a2201dd19e716813fb01fbee9e9a4;
 
@@ -40,7 +42,11 @@ fn gen_main_organizer_role(event_id: u256) -> felt252 {
 fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
     let event_factory_contract = declare("EventFactory").unwrap().contract_class();
     let calldata = array![
-        ACCOUNT, TICKET_NFT_CLASS_HASH, TBA_REGISTRY_CLASS_HASH, TBA_ACCOUNTV3_CLASS_HASH
+        ACCOUNT,
+        TICKET_NFT_CLASS_HASH,
+        TBA_REGISTRY_CLASS_HASH,
+        TBA_REGISTRY_CONTRACT_ADDRESS,
+        TBA_ACCOUNTV3_CLASS_HASH
     ];
     let (event_factory_address, _) = event_factory_contract.deploy(@calldata).unwrap();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
@@ -140,7 +146,6 @@ fn test_purchase_ticket() {
 
     event_factory.add_organizer(1, ACCOUNT1.try_into().unwrap());
 }
-
 // #[test]
 // fn test_increase_balance() {
 //     let contract_address = deploy_contract("EventFactory");

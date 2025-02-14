@@ -17,7 +17,7 @@ pub mod EventFactory {
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
     use token_bound_accounts::{
-        interfaces::{IRegistry::{IRegistryLibraryDispatcher, IRegistryDispatcherTrait}},
+        interfaces::{IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait}},
         utils::array_ext::ArrayExt,
     };
     use crowd_pass::{
@@ -136,6 +136,7 @@ pub mod EventFactory {
         upgradeable: UpgradeableComponent::Storage,
         ticket_721_class_hash: felt252,
         tba_registry_class_hash: felt252,
+        tba_registry_contract_address: felt252,
         tba_accountv3_class_hash: felt252,
         event_count: u256,
         events: Map<u256, EventData>,
@@ -153,12 +154,14 @@ pub mod EventFactory {
         default_admin: felt252,
         ticket_721_class_hash: felt252,
         tba_registry_class_hash: felt252,
+        tba_registry_contract_address: felt252,
         tba_accountv3_class_hash: felt252,
     ) {
         self.accesscontrol.initializer();
         self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin.try_into().unwrap());
         self.ticket_721_class_hash.write(ticket_721_class_hash);
         self.tba_registry_class_hash.write(tba_registry_class_hash);
+        self.tba_registry_contract_address.write(tba_registry_contract_address);
         self.tba_accountv3_class_hash.write(tba_accountv3_class_hash);
     }
 
@@ -271,6 +274,10 @@ pub mod EventFactory {
             let main_organizer_role = self._gen_main_organizer_role(event_id);
             self.accesscontrol.assert_only_role(main_organizer_role);
             self._collect_event_payout(event_id);
+        }
+
+        fn refund_ticket (ref self : ContractState, event_id: u256, ticket_id: u256) {
+            assert(self._refund_ticket(event_id, ticket_id), Errors::REFUND_FAILED);
         }
 
         // -------------- GETTER FUNCTIONS -----------------------
@@ -630,6 +637,30 @@ pub mod EventFactory {
                 );
         }
 
+        fn _refund_ticket (ref self : ContractState, event_id: u256, ticket_id: u256) -> bool {
+            let event_instance = self.events.entry(event_id).read();
+            assert(event_instance.is_canceled, Errors::EVENT_NOT_CANCELED);
+            let ticket_address = event_instance.ticket_address;
+            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+
+            let ticket_owner = ticket.owner_of(ticket_id);
+            let caller = get_caller_address();
+            assert(caller == ticket_owner, Errors::NOT_TICKET_OWNER);
+            // ticket.burn(ticket_id);
+
+            let tba_address = self._get_tba(ticket_address, ticket_id);
+
+            let ticket_price = event_instance.ticket_price;
+
+            let current_event_balance = self.event_balance.entry(event_id).read();
+            self.event_balance.entry(event_id).write(current_event_balance - ticket_price);
+
+            let success = IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
+                .transfer(tba_address, ticket_price);
+
+            success
+        }
+
         fn _deploy_tba(
             self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
         ) -> ContractAddress {
@@ -637,6 +668,23 @@ pub mod EventFactory {
                 class_hash: self.tba_registry_class_hash.read().try_into().unwrap()
             }
                 .create_account(
+                    self.tba_accountv3_class_hash.read().try_into().unwrap(),
+                    ticket_address,
+                    ticket_id,
+                    ticket_id.try_into().unwrap(),
+                    get_tx_info().chain_id
+                );
+
+            tba_address
+        }
+
+        fn _get_tba(
+            self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
+        ) -> ContractAddress {
+            let tba_address = IRegistryDispatcher {
+                contract_address: self.tba_registry_contract_address.read().try_into().unwrap()
+            }
+                .get_account(
                     self.tba_accountv3_class_hash.read().try_into().unwrap(),
                     ticket_address,
                     ticket_id,

@@ -21,6 +21,7 @@ pub mod Errors {
     pub const NOT_TICKET_OWNER: felt252 = 'Not ticket owner';
     pub const ALREADY_MINTED: felt252 = 'Recipient already has a ticket';
     pub const REFUND_CLIAMED: felt252 = 'Refund cliamed';
+    pub const REFUND_FAILED: felt252 = 'Refund failed';
     // TicketNFT
     pub const NOT_NFT_OWNER: felt252 = 'Not nft owner';
     pub const ALREADY_INITIALIZED: felt252 = 'Already initialized';
