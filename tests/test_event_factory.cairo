@@ -112,7 +112,7 @@ fn test_cancel_event() {
 #[test]
 #[fork("SEPOLIA_LATEST")]
 #[should_panic(expected: 'Caller is missing role')]
-fn test_fail_not_main_organizer_cancel_event() {
+fn should_panic_not_main_organizer_cancel_event() {
     let (event_factory_address, _, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
