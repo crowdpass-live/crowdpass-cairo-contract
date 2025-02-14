@@ -31,9 +31,17 @@ pub mod EventFactory {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 CONSTANTS
     //////////////////////////////////////////////////////////////////////////*//
-    pub const E18: u256 = 1000000000000000000;
-    pub const STRK_TOKEN_ADDRESS: felt252 =
+    const E18: u256 = 1000000000000000000;
+    const STRK_TOKEN_ADDRESS: felt252 =
         0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
+    const TICKET_721_CLASS_HASH: felt252 =
+        0x02932c15f926119f4601b9914a38f7a9861effa19e3a7bfe3d14ce0528e6a908;
+    const TBA_REGISTRY_CLASS_HASH: felt252 =
+        0x2cbf50931c7ec9029c5188985ea5fa8aedc728d352bde12ec889c212f0e8b3;
+    const TBA_REGISTRY_CONTRACT_ADDRESS: felt252 =
+        0x41f87c7b00c3fb50cc7744f896f2d3438414be33912bd24f17318c9f48523a1;
+    const TBA_ACCOUNTV3_CLASS_HASH: felt252 =
+        0x29d2a1b11dd97289e18042502f11356133a2201dd19e716813fb01fbee9e9a4;
 
     //*//////////////////////////////////////////////////////////////////////////
     //                                COMPONENTS
@@ -134,10 +142,6 @@ pub mod EventFactory {
         accesscontrol: AccessControlComponent::Storage,
         #[substorage(v0)]
         upgradeable: UpgradeableComponent::Storage,
-        ticket_721_class_hash: felt252,
-        tba_registry_class_hash: felt252,
-        tba_registry_contract_address: felt252,
-        tba_accountv3_class_hash: felt252,
         event_count: u256,
         events: Map<u256, EventData>,
         event_balance: Map<u256, u256>,
@@ -152,17 +156,9 @@ pub mod EventFactory {
     fn constructor(
         ref self: ContractState,
         default_admin: felt252,
-        ticket_721_class_hash: felt252,
-        tba_registry_class_hash: felt252,
-        tba_registry_contract_address: felt252,
-        tba_accountv3_class_hash: felt252,
     ) {
         self.accesscontrol.initializer();
         self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin.try_into().unwrap());
-        self.ticket_721_class_hash.write(ticket_721_class_hash);
-        self.tba_registry_class_hash.write(tba_registry_class_hash);
-        self.tba_registry_contract_address.write(tba_registry_contract_address);
-        self.tba_accountv3_class_hash.write(tba_accountv3_class_hash);
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -385,7 +381,7 @@ pub mod EventFactory {
 
             // deploy ticket721 contract
             let ticket = deploy_syscall(
-                self.ticket_721_class_hash.read().try_into().unwrap(),
+                TICKET_721_CLASS_HASH.try_into().unwrap(),
                 event_hash,
                 array![address_this.into(), address_this.into()].span(),
                 true,
@@ -665,10 +661,10 @@ pub mod EventFactory {
             self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
         ) -> ContractAddress {
             let tba_address = IRegistryLibraryDispatcher {
-                class_hash: self.tba_registry_class_hash.read().try_into().unwrap()
+                class_hash: TBA_REGISTRY_CLASS_HASH.try_into().unwrap()
             }
                 .create_account(
-                    self.tba_accountv3_class_hash.read().try_into().unwrap(),
+                    TBA_ACCOUNTV3_CLASS_HASH.try_into().unwrap(),
                     ticket_address,
                     ticket_id,
                     ticket_id.try_into().unwrap(),
@@ -682,10 +678,10 @@ pub mod EventFactory {
             self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
         ) -> ContractAddress {
             let tba_address = IRegistryDispatcher {
-                contract_address: self.tba_registry_contract_address.read().try_into().unwrap()
+                contract_address: TBA_REGISTRY_CONTRACT_ADDRESS.try_into().unwrap()
             }
                 .get_account(
-                    self.tba_accountv3_class_hash.read().try_into().unwrap(),
+                    TBA_ACCOUNTV3_CLASS_HASH.try_into().unwrap(),
                     ticket_address,
                     ticket_id,
                     ticket_id.try_into().unwrap(),
