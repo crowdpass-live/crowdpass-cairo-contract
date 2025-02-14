@@ -30,7 +30,7 @@ test = "snforge test"
 
 [tool.voyager]
 event_factory = { path = "event_factory/event_factory.cairo" }
-# ticket-721 = { path = "ticket/ticket_721.cairo", address = "0x038ac0660e4ce209a8d71527ef92103de48801cbe5ce0c97fb7e262f961e510a" }
+ticket_721 = { path = "tickets/ticket_721.cairo" }
 
 [[tool.snforge.fork]]
 name = "SEPOLIA_LATEST"
