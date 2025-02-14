@@ -42,11 +42,7 @@ fn gen_main_organizer_role(event_id: u256) -> felt252 {
 fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
     let event_factory_contract = declare("EventFactory").unwrap().contract_class();
     let calldata = array![
-        ACCOUNT,
-        TICKET_NFT_CLASS_HASH,
-        TBA_REGISTRY_CLASS_HASH,
-        TBA_REGISTRY_CONTRACT_ADDRESS,
-        TBA_ACCOUNTV3_CLASS_HASH
+        ACCOUNT
     ];
     let (event_factory_address, _) = event_factory_contract.deploy(@calldata).unwrap();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
