@@ -577,11 +577,13 @@ pub mod EventFactory {
 
         fn _check_in(ref self: ContractState, event_id: u256, attendee: ContractAddress) {
             let event_instance = self.events.entry(event_id).read();
-            let ticket_address = event_instance.ticket_address;
-            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
-
+            
             // assert event has started
             assert(event_instance.start_date >= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
+            assert(event_instance.end_date <= get_block_timestamp(), Errors::EVENT_ENDED);
+            
+            let ticket_address = event_instance.ticket_address;
+            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
 
             if !ticket.is_paused() {
                 ticket.pause();
