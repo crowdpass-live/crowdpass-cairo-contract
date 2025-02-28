@@ -25,7 +25,7 @@ pub mod EventFactory {
     use crowd_pass::{
         errors::Errors,
         interfaces::{
-            i_event_factory::{EventData, IEventFactory},
+            i_event_factory::{EventData, EventMetadata, IEventFactory},
             i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait},
         },
     };
@@ -37,7 +37,7 @@ pub mod EventFactory {
     const STRK_TOKEN_ADDRESS: felt252 =
         0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
     const TICKET_721_CLASS_HASH: felt252 =
-        0x02932c15f926119f4601b9914a38f7a9861effa19e3a7bfe3d14ce0528e6a908;
+        0x005ee891ce47817ff2f1264599fc9e25d414eb6b84c74e83b2af7200f0ad1f0c;
     const TBA_REGISTRY_CLASS_HASH: felt252 =
         0x2cbf50931c7ec9029c5188985ea5fa8aedc728d352bde12ec889c212f0e8b3;
     const TBA_REGISTRY_CONTRACT_ADDRESS: felt252 =
@@ -277,22 +277,62 @@ pub mod EventFactory {
 
         // -------------- GETTER FUNCTIONS -----------------------
 
-        fn get_all_events(self: @ContractState) -> Array<EventData> {
+        fn get_all_events(self: @ContractState) -> Array<EventMetadata> {
             let mut events = array![];
-            let _count = self.event_count.read();
+            let count = self.event_count.read();
             let mut i: u256 = 1;
 
-            while i < _count + 1 {
+            while i < count + 1 {
                 let event: EventData = self.events.entry(i).read();
-                events.append(event);
-                i += 1;
+                let ticket_address = event.ticket_address;
+                let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+                let mut metadata = EventMetadata {
+                    id: event.id,
+                    organizer: event.organizer,
+                    ticket_address: ticket_address,
+                    name: ticket.name(),
+                    symbol: ticket.symbol(),
+                    uri: ticket.base_uri(),
+                    description: event.description,
+                    location: event.location,
+                    created_at: event.created_at,
+                    updated_at: event.updated_at,
+                    start_date: event.start_date,
+                    end_date: event.end_date,
+                    total_tickets: event.total_tickets,
+                    ticket_price: event.ticket_price,
+                    is_canceled: event.is_canceled,
+                };
+                events.append(metadata);
+                i = i + 1;
             };
 
             events
         }
 
-        fn get_event(self: @ContractState, event_id: u256) -> EventData {
-            self.events.entry(event_id).read()
+        fn get_event(self: @ContractState, event_id: u256) -> EventMetadata {
+            let event = self.events.entry(event_id).read();
+            let ticket_address = event.ticket_address;
+            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+            let mut metadata = EventMetadata {
+                id: event.id,
+                organizer: event.organizer,
+                ticket_address: ticket_address,
+                name: ticket.name(),
+                symbol: ticket.symbol(),
+                uri: ticket.base_uri(),
+                description: event.description,
+                location: event.location,
+                created_at: event.created_at,
+                updated_at: event.updated_at,
+                start_date: event.start_date,
+                end_date: event.end_date,
+                total_tickets: event.total_tickets,
+                ticket_price: event.ticket_price,
+                is_canceled: event.is_canceled,
+            };
+
+            metadata
         }
 
         fn get_event_count(self: @ContractState) -> u256 {
@@ -577,11 +617,11 @@ pub mod EventFactory {
 
         fn _check_in(ref self: ContractState, event_id: u256, attendee: ContractAddress) {
             let event_instance = self.events.entry(event_id).read();
-            
+
             // assert event has started
             assert(event_instance.start_date >= get_block_timestamp(), Errors::EVENT_NOT_STARTED);
             assert(event_instance.end_date <= get_block_timestamp(), Errors::EVENT_ENDED);
-            
+
             let ticket_address = event_instance.ticket_address;
             let ticket = ITicket721Dispatcher { contract_address: ticket_address };
 
@@ -640,12 +680,15 @@ pub mod EventFactory {
             let ticket_address = event_instance.ticket_address;
             let ticket = ITicket721Dispatcher { contract_address: ticket_address };
 
-            let ticket_owner = ticket.owner_of(ticket_id);
             let caller = get_caller_address();
-            assert(caller == ticket_owner, Errors::NOT_TICKET_OWNER);
-            // ticket.burn(ticket_id);
-
             let tba_address = self._get_tba(ticket_address, ticket_id);
+            assert(caller == tba_address, Errors::CALLER_NOT_TBA);
+
+            let ticket_owner = ticket.owner_of(ticket_id);
+            assert(
+                self.event_attendance.entry(event_id).entry(ticket_owner).read(),
+                Errors::NOT_TICKET_OWNER
+            );
 
             let ticket_price = event_instance.ticket_price;
 
