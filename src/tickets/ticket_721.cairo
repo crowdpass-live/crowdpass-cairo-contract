@@ -205,6 +205,11 @@ pub mod Ticket721 {
         fn token_uri(self: @ContractState, token_id: u256) -> ByteArray {
             self.erc721._base_uri()
         }
+
+        #[external(v0)]
+        fn base_uri(self: @ContractState) -> ByteArray {
+            self.erc721._base_uri()
+        }
     }
 
     //*//////////////////////////////////////////////////////////////////////////

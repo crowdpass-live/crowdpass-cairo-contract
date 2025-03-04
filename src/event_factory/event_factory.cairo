@@ -37,7 +37,7 @@ pub mod EventFactory {
     const STRK_TOKEN_ADDRESS: felt252 =
         0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
     const TICKET_721_CLASS_HASH: felt252 =
-        0x005ee891ce47817ff2f1264599fc9e25d414eb6b84c74e83b2af7200f0ad1f0c;
+        0x054f035771478919913f0a821b14eee44054b6fce87c8908241e6d33e5e8933b;
     const TBA_REGISTRY_CLASS_HASH: felt252 =
         0x2cbf50931c7ec9029c5188985ea5fa8aedc728d352bde12ec889c212f0e8b3;
     const TBA_REGISTRY_CONTRACT_ADDRESS: felt252 =
@@ -429,8 +429,7 @@ pub mod EventFactory {
             let (ticket_address, _) = ticket.unwrap_syscall();
 
             // initialize ticket721 contract
-            ITicket721Dispatcher { contract_address: ticket_address }
-                .initialize(name, symbol, uri,);
+            ITicket721Dispatcher { contract_address: ticket_address }.initialize(name, symbol, uri);
 
             // new event struct instance
             let event_instance = EventData {
