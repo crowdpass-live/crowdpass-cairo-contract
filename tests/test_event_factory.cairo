@@ -103,7 +103,7 @@ fn test_cancel_event() {
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     let event_canceled = event_factory.cancel_event(1);
-    let event_data: EventData = event_factory.get_event(1);
+    let event_data = event_factory.get_event(1);
 
     assert(event_canceled, 'Event cancellation failed');
     assert(event_data.is_canceled == true, 'Event not canceled');
