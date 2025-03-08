@@ -17,9 +17,7 @@ pub mod EventFactory {
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
     use token_bound_accounts::{
-        interfaces::{
-            IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait}
-        },
+        interfaces::IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait},
         utils::array_ext::ArrayExt,
     };
     use crowd_pass::{
