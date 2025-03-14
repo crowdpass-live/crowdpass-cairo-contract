@@ -17,7 +17,9 @@ pub mod EventFactory {
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
     use token_bound_accounts::{
-        interfaces::IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait},
+        interfaces::IRegistry::{
+            IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait
+        },
         utils::array_ext::ArrayExt,
     };
     use crowd_pass::{
@@ -69,6 +71,7 @@ pub mod EventFactory {
         TicketRecliamed: TicketRecliamed,
         CheckedIn: CheckedIn,
         PayoutCollected: PayoutCollected,
+        Refunded: Refunded,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -131,6 +134,16 @@ pub mod EventFactory {
         amount: u256
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct Refunded {
+        #[key]
+        event_id: u256,
+        #[key]
+        attendee: ContractAddress,
+        tba: ContractAddress,
+        amount: u256
+    }
+
     //*//////////////////////////////////////////////////////////////////////////
     //                                  STORAGE
     //////////////////////////////////////////////////////////////////////////*//
@@ -169,8 +182,6 @@ pub mod EventFactory {
             name: ByteArray,
             symbol: ByteArray,
             uri: ByteArray,
-            description: ByteArray,
-            location: ByteArray,
             start_date: u64,
             end_date: u64,
             total_tickets: u256,
@@ -181,8 +192,6 @@ pub mod EventFactory {
                     name,
                     symbol,
                     uri,
-                    description,
-                    location,
                     start_date,
                     end_date,
                     total_tickets,
@@ -198,8 +207,6 @@ pub mod EventFactory {
             name: ByteArray,
             symbol: ByteArray,
             uri: ByteArray,
-            description: ByteArray,
-            location: ByteArray,
             start_date: u64,
             end_date: u64,
             total_tickets: u256,
@@ -215,8 +222,6 @@ pub mod EventFactory {
                     name,
                     symbol,
                     uri,
-                    description,
-                    location,
                     start_date,
                     end_date,
                     total_tickets,
@@ -243,6 +248,7 @@ pub mod EventFactory {
             let event_hash = self._gen_event_hash(event_id);
             self._add_organizer(event_hash, organizer);
         }
+        
         fn remove_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
             let main_organizer_role = self._gen_main_organizer_role(event_id);
             // assert caller has main organizer role
@@ -291,8 +297,6 @@ pub mod EventFactory {
                     name: ticket.name(),
                     symbol: ticket.symbol(),
                     uri: ticket.base_uri(),
-                    description: event.description,
-                    location: event.location,
                     created_at: event.created_at,
                     updated_at: event.updated_at,
                     start_date: event.start_date,
@@ -319,8 +323,6 @@ pub mod EventFactory {
                 name: ticket.name(),
                 symbol: ticket.symbol(),
                 uri: ticket.base_uri(),
-                description: event.description,
-                location: event.location,
                 created_at: event.created_at,
                 updated_at: event.updated_at,
                 start_date: event.start_date,
@@ -397,8 +399,6 @@ pub mod EventFactory {
             name: ByteArray,
             symbol: ByteArray,
             uri: ByteArray,
-            description: ByteArray,
-            location: ByteArray,
             start_date: u64,
             end_date: u64,
             total_tickets: u256,
@@ -434,8 +434,6 @@ pub mod EventFactory {
                 id: event_count,
                 organizer: caller,
                 ticket_address: ticket_address,
-                description: description,
-                location: location,
                 created_at: get_block_timestamp(),
                 updated_at: 0,
                 start_date: start_date,
@@ -468,8 +466,6 @@ pub mod EventFactory {
             name: ByteArray,
             symbol: ByteArray,
             uri: ByteArray,
-            description: ByteArray,
-            location: ByteArray,
             start_date: u64,
             end_date: u64,
             total_tickets: u256,
@@ -496,8 +492,6 @@ pub mod EventFactory {
                 ticket.set_base_uri(uri);
             }
             // update event instance
-            event_instance.description = description;
-            event_instance.location = location;
             event_instance.updated_at = get_block_timestamp();
             event_instance.start_date = start_date;
             event_instance.end_date = end_date;
@@ -580,7 +574,10 @@ pub mod EventFactory {
             assert(ticket_id <= event_instance.total_tickets, Errors::EVENT_SOLD_OUT);
 
             // transfer the ticket price to the contract
-            strk_token.transfer_from(buyer, get_contract_address(), ticket_price_plus_fee);
+            assert(
+                strk_token.transfer_from(buyer, get_contract_address(), ticket_price_plus_fee),
+                Errors::TRANSFER_FAILED
+            );
 
             let current_event_balance = self.event_balance.entry(event_id).read();
             self.event_balance.entry(event_id).write(current_event_balance + ticket_price);
@@ -660,8 +657,11 @@ pub mod EventFactory {
             let crowd_pass_balance = self.crowd_pass_balance.entry(event_id).read();
             self.crowd_pass_balance.entry(event_id).write(crowd_pass_balance + crowd_pass_fee);
 
-            IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
-                .transfer(organizer, event_balance_minus_fee);
+            assert(
+                IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
+                    .transfer(organizer, event_balance_minus_fee),
+                Errors::TRANSFER_FAILED
+            );
 
             self
                 .emit(
@@ -692,9 +692,7 @@ pub mod EventFactory {
             let current_event_balance = self.event_balance.entry(event_id).read();
             self.event_balance.entry(event_id).write(current_event_balance - ticket_price);
 
-            let success = IERC20Dispatcher {
-                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
-            }
+            let success = IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
                 .transfer(tba_address, ticket_price);
 
             success

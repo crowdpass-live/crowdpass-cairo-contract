@@ -8,8 +8,6 @@ pub trait IEventFactory<TContractState> {
         name: ByteArray,
         symbol: ByteArray,
         uri: ByteArray,
-        description: ByteArray,
-        location: ByteArray,
         start_date: u64,
         end_date: u64,
         total_tickets: u256,
@@ -21,8 +19,6 @@ pub trait IEventFactory<TContractState> {
         name: ByteArray,
         symbol: ByteArray,
         uri: ByteArray,
-        description: ByteArray,
-        location: ByteArray,
         start_date: u64,
         end_date: u64,
         total_tickets: u256,
@@ -47,8 +43,6 @@ pub struct EventData {
     pub id: u256,
     pub organizer: ContractAddress,
     pub ticket_address: ContractAddress,
-    pub description: ByteArray,
-    pub location: ByteArray,
     pub created_at: u64,
     pub updated_at: u64,
     pub start_date: u64,
@@ -66,8 +60,6 @@ pub struct EventMetadata {
     pub name: ByteArray,
     pub symbol: ByteArray,
     pub uri: ByteArray,
-    pub description: ByteArray,
-    pub location: ByteArray,
     pub created_at: u64,
     pub updated_at: u64,
     pub start_date: u64,
@@ -81,5 +73,3 @@ pub struct EventMetadata {
 //     free,
 //     paid,
 // }
-
-
