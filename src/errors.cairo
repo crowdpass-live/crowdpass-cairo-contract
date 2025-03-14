@@ -26,4 +26,6 @@ pub mod Errors {
     // TicketNFT
     pub const NOT_NFT_OWNER: felt252 = 'Not nft owner';
     pub const ALREADY_INITIALIZED: felt252 = 'Already initialized';
+
+    pub const TRANSFER_FAILED: felt252 = 'Transfer failed';
 }
