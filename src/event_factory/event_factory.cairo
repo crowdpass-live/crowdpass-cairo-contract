@@ -203,7 +203,7 @@ pub mod EventFactory {
 
         fn update_event(
             ref self: ContractState,
-            event_id: u256,
+            index: u256,
             name: ByteArray,
             symbol: ByteArray,
             uri: ByteArray,
@@ -212,13 +212,13 @@ pub mod EventFactory {
             total_tickets: u256,
             ticket_price: u256,
         ) -> EventData {
-            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            let main_organizer_role = self._gen_main_organizer_role(index);
             // assert caller has main organizer role
             self.accesscontrol.assert_only_role(main_organizer_role);
 
             let event = self
                 ._update_event(
-                    event_id,
+                    index,
                     name,
                     symbol,
                     uri,
@@ -276,7 +276,7 @@ pub mod EventFactory {
         }
 
         fn refund_ticket(ref self: ContractState, event_id: u256, ticket_id: u256) {
-            assert(self._refund_ticket(event_id, ticket_id), Errors::REFUND_FAILED);
+            self._refund_ticket(event_id, ticket_id);
         }
 
         // -------------- GETTER FUNCTIONS -----------------------
@@ -291,7 +291,7 @@ pub mod EventFactory {
                 let ticket_address = event.ticket_address;
                 let ticket = ITicket721Dispatcher { contract_address: ticket_address };
                 let mut metadata = EventMetadata {
-                    id: event.id,
+                    index: event.index,
                     organizer: event.organizer,
                     ticket_address: ticket_address,
                     name: ticket.name(),
@@ -317,7 +317,7 @@ pub mod EventFactory {
             let ticket_address = event.ticket_address;
             let ticket = ITicket721Dispatcher { contract_address: ticket_address };
             let mut metadata = EventMetadata {
-                id: event.id,
+                index: event.index,
                 organizer: event.organizer,
                 ticket_address: ticket_address,
                 name: ticket.name(),
@@ -431,7 +431,7 @@ pub mod EventFactory {
 
             // new event struct instance
             let event_instance = EventData {
-                id: event_count,
+                index: event_count,
                 organizer: caller,
                 ticket_address: ticket_address,
                 created_at: get_block_timestamp(),
@@ -462,7 +462,7 @@ pub mod EventFactory {
 
         fn _update_event(
             ref self: ContractState,
-            event_id: u256,
+            index: u256,
             name: ByteArray,
             symbol: ByteArray,
             uri: ByteArray,
@@ -471,7 +471,7 @@ pub mod EventFactory {
             total_tickets: u256,
             ticket_price: u256,
         ) -> EventData {
-            let mut event_instance = self.events.entry(event_id).read();
+            let mut event_instance = self.events.entry(index).read();
             // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
             // assert caller is the main organizer
@@ -498,11 +498,11 @@ pub mod EventFactory {
             event_instance.total_tickets = total_tickets;
             event_instance.ticket_price = ticket_price;
 
-            self.events.entry(event_id).write(event_instance);
+            self.events.entry(index).write(event_instance);
 
-            self.emit(EventUpdated { id: event_id, start_date: start_date, end_date: end_date });
+            self.emit(EventUpdated { id: index, start_date: start_date, end_date: end_date });
 
-            self.events.entry(event_id).read()
+            self.events.entry(index).read()
         }
 
         fn _cancel_event(ref self: ContractState, event_id: u256) -> bool {
@@ -671,7 +671,7 @@ pub mod EventFactory {
                 );
         }
 
-        fn _refund_ticket(ref self: ContractState, event_id: u256, ticket_id: u256) -> bool {
+        fn _refund_ticket(ref self: ContractState, event_id: u256, ticket_id: u256) {
             let event_instance = self.events.entry(event_id).read();
             assert(event_instance.is_canceled, Errors::EVENT_NOT_CANCELED);
             let ticket_address = event_instance.ticket_address;
@@ -695,7 +695,7 @@ pub mod EventFactory {
             let success = IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
                 .transfer(tba_address, ticket_price);
 
-            success
+            assert(success, Errors::REFUND_FAILED);
         }
 
         fn _create_tba(

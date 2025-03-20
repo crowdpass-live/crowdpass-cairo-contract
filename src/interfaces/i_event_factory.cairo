@@ -15,7 +15,7 @@ pub trait IEventFactory<TContractState> {
     ) -> EventData;
     fn update_event(
         ref self: TContractState,
-        event_id: u256,
+        index: u256,
         name: ByteArray,
         symbol: ByteArray,
         uri: ByteArray,
@@ -40,7 +40,7 @@ pub trait IEventFactory<TContractState> {
 
 #[derive(Drop, Serde, starknet::Store)]
 pub struct EventData {
-    pub id: u256,
+    pub index: u256,
     pub organizer: ContractAddress,
     pub ticket_address: ContractAddress,
     pub created_at: u64,
@@ -54,7 +54,7 @@ pub struct EventData {
 
 #[derive(Drop, Serde, starknet::Store)]
 pub struct EventMetadata {
-    pub id: u256,
+    pub index: u256,
     pub organizer: ContractAddress,
     pub ticket_address: ContractAddress,
     pub name: ByteArray,
