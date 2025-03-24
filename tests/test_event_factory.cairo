@@ -107,38 +107,43 @@ fn test_purchase_ticket() {
     // prank organizer and create event
     let (event_factory_address, event, ticket) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
-    
+
     // stop organizer prank
     stop_cheat_caller_address(event_factory_address);
-    
+
     // import strk token
     let strk_address: ContractAddress = STRK_TOKEN_ADDR.try_into().unwrap();
     let strk = IERC20Dispatcher { contract_address: strk_address };
-    
+
     // start strk whale prank on event factory
     start_cheat_caller_address(event_factory_address, STRK_WHALE.try_into().unwrap());
     strk.approve(event_factory_address, 100000000000000000000);
-    
+    stop_cheat_caller_address(event_factory_address);
+
     // purchase ticket
     let tba_address = event_factory.purchase_ticket(1);
-    stop_cheat_caller_address(event_factory_address);
 
     let tba_registry = IRegistryDispatcher {
         contract_address: TBA_REGISTRY_CONTRACT_ADDRESS.try_into().unwrap()
     };
 
-    let derived_tba_address = tba_registry.get_account(
-        TBA_ACCOUNTV3_CLASS_HASH.try_into().unwrap(),
-        event.ticket_address,
-        event.id,
-        event.id.try_into().unwrap(),
-        get_tx_info().chain_id
-    );
+    let derived_tba_address = tba_registry
+        .get_account(
+            TBA_ACCOUNTV3_CLASS_HASH.try_into().unwrap(),
+            event.ticket_address,
+            event.id,
+            event.id.try_into().unwrap(),
+            get_tx_info().chain_id
+        );
 
     assert(tba_address == derived_tba_address, 'Invalid TBA address');
     assert(ticket.balance_of(STRK_WHALE.try_into().unwrap()) == 1, 'Invalid ticket balance');
     assert(ticket.total_supply() == 1, 'Invalid total supply');
-    assert(strk.balance_of(event_factory_address) == 1000000000000000000 + ((1000000000000000000 * 3) / 100), 'Invalid contract balance');
+    assert(
+        strk.balance_of(event_factory_address) == 1000000000000000000
+            + ((1000000000000000000 * 3) / 100),
+        'Invalid contract balance'
+    );
 }
 
 #[test]
@@ -208,5 +213,4 @@ fn test_remove_organizer() {
 //         }
 //     };
 // }
-
 
