@@ -20,7 +20,6 @@ pub mod EventFactory {
         interfaces::IRegistry::{
             IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait
         },
-        utils::array_ext::ArrayExt,
     };
     use crowd_pass::{
         errors::Errors,
@@ -189,13 +188,7 @@ pub mod EventFactory {
         ) -> EventData {
             let event = self
                 ._create_event(
-                    name,
-                    symbol,
-                    uri,
-                    start_date,
-                    end_date,
-                    total_tickets,
-                    ticket_price
+                    name, symbol, uri, start_date, end_date, total_tickets, ticket_price
                 );
 
             event
@@ -218,14 +211,7 @@ pub mod EventFactory {
 
             let event = self
                 ._update_event(
-                    index,
-                    name,
-                    symbol,
-                    uri,
-                    start_date,
-                    end_date,
-                    total_tickets,
-                    ticket_price
+                    index, name, symbol, uri, start_date, end_date, total_tickets, ticket_price
                 );
 
             event
@@ -248,7 +234,7 @@ pub mod EventFactory {
             let event_hash = self._gen_event_hash(event_id);
             self._add_organizer(event_hash, organizer);
         }
-        
+
         fn remove_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
             let main_organizer_role = self._gen_main_organizer_role(event_id);
             // assert caller has main organizer role
@@ -692,7 +678,9 @@ pub mod EventFactory {
             let current_event_balance = self.event_balance.entry(event_id).read();
             self.event_balance.entry(event_id).write(current_event_balance - ticket_price);
 
-            let success = IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
+            let success = IERC20Dispatcher {
+                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
+            }
                 .transfer(tba_address, ticket_price);
 
             assert(success, Errors::REFUND_FAILED);
