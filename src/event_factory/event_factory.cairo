@@ -390,6 +390,8 @@ pub mod EventFactory {
             total_tickets: u256,
             ticket_price: u256,
         ) -> EventData {
+            assert(end_date > start_date + 86400, Errors::INVALID_EVENT_DURATION);
+            
             let caller = get_caller_address();
             let event_count = self.event_count.read() + 1;
             let address_this = get_contract_address();
@@ -533,12 +535,18 @@ pub mod EventFactory {
             let event_count: u256 = self.event_count.read();
             // assert is_valid event
             assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
-
+            
             let mut event_instance: EventData = self.events.entry(event_id).read();
             // assert event is not canceled
             assert(!event_instance.is_canceled, Errors::EVENT_CANCELED);
             // assert event has not ended
             assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
+
+            let ticket_address = event_instance.ticket_address;
+            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+
+            // assert buyer does not have a ticket to mitigate scalping
+            assert(ticket.balance_of(buyer) == 0, Errors::ALREADY_MINTED);
 
             // verify if caller has enough strk token for the ticket_price + 3% fee
             let ticket_price = event_instance.ticket_price;
@@ -554,8 +562,6 @@ pub mod EventFactory {
                 strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE
             );
 
-            let ticket_address = event_instance.ticket_address;
-            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
             let ticket_id = ticket.total_supply() + 1;
             assert(ticket_id <= event_instance.total_tickets, Errors::EVENT_SOLD_OUT);
 

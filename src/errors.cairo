@@ -15,6 +15,7 @@ pub mod Errors {
     pub const EVENT_NOT_ENDED: felt252 = 'Event is not ended';
     pub const EVENT_NOT_STARTED: felt252 = 'Event is not started';
     pub const EVENT_SOLD_OUT: felt252 = 'Event is sold out';
+    pub const INVALID_EVENT_DURATION: felt252 = 'Event duration less than 24h';
     pub const INSUFFICIENT_BALANCE: felt252 = 'Balance is low';
     pub const LOW_TOKEN_ALLOWANCE: felt252 = 'Token allowance too low';
     pub const NOT_TICKET_HOLDER: felt252 = 'Balance_of less than 1';
