@@ -38,7 +38,7 @@ pub trait IEventFactory<TContractState> {
     // fn resale_ticket (ref self : TContractState, event_id: u32) -> bool;
 }
 
-#[derive(Drop, Serde, starknet::Store)]
+#[derive(Drop, Copy, Serde, starknet::Store)]
 pub struct EventData {
     pub index: u256,
     pub organizer: ContractAddress,
