@@ -157,24 +157,24 @@ pub mod Ticket721 {
         }
 
         #[external(v0)]
-        fn update_name(ref self: ContractState, new_name: ByteArray) {
+        fn set_name(ref self: ContractState, new_name: ByteArray) {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
-            self.erc721.ERC721_name.write(new_name);
-            self.emit(NameUpdated { name: self.erc721.name() });
+            self.erc721.ERC721_name.write(new_name.clone());
+            self.emit(NameUpdated { name: new_name });
         }
 
         #[external(v0)]
-        fn update_symbol(ref self: ContractState, new_symbol: ByteArray) {
+        fn set_symbol(ref self: ContractState, new_symbol: ByteArray) {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
-            self.erc721.ERC721_symbol.write(new_symbol);
-            self.emit(SymbolUpdated { symbol: self.erc721.symbol() });
+            self.erc721.ERC721_symbol.write(new_symbol.clone());
+            self.emit(SymbolUpdated { symbol: new_symbol });
         }
 
         #[external(v0)]
         fn set_base_uri(ref self: ContractState, base_uri: ByteArray) {
             self.accesscontrol.assert_only_role(DEFAULT_ADMIN_ROLE);
-            self.erc721._set_base_uri(base_uri);
-            self.emit(URI { value: self.erc721._base_uri() });
+            self.erc721._set_base_uri(base_uri.clone());
+            self.emit(URI { value: base_uri });
         }
 
         // ERC721 Metadata Functions
