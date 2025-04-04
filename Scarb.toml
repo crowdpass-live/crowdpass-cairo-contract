@@ -19,7 +19,7 @@ openzeppelin = "^0.17.0"
 token_bound_accounts = "0.3.1"
 
 [dev-dependencies]
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.38.3" }
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.40.0" }
 
 [[target.starknet-contract]]
 sierra = true
@@ -34,7 +34,7 @@ ticket_721 = { path = "tickets/ticket_721.cairo" }
 
 [[tool.snforge.fork]]
 name = "SEPOLIA_LATEST"
-url = "https://starknet-sepolia.public.blastapi.io/rpc/v0_7"
+url = "https://starknet-sepolia.public.blastapi.io/rpc/v0_8"
 block_id.tag = "latest"
 
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
