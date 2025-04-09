@@ -16,6 +16,7 @@ pub mod EventFactory {
         access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
         upgrades::{interface::IUpgradeable, UpgradeableComponent},
     };
+    use alexandria_data_structures::span_ext::SpanTraitExt;
     use token_bound_accounts::{
         interfaces::IRegistry::{
             IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait
@@ -36,7 +37,7 @@ pub mod EventFactory {
     const STRK_TOKEN_ADDRESS: felt252 =
         0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
     const TICKET_721_CLASS_HASH: felt252 =
-        0x054f035771478919913f0a821b14eee44054b6fce87c8908241e6d33e5e8933b;
+        0x01a6143d240fc4bfe546698326e56089d8345c790765fd190d495b3b19144074;
     const TBA_REGISTRY_CLASS_HASH: felt252 =
         0x2cbf50931c7ec9029c5188985ea5fa8aedc728d352bde12ec889c212f0e8b3;
     const TBA_REGISTRY_CONTRACT_ADDRESS: felt252 =
@@ -158,7 +159,11 @@ pub mod EventFactory {
         events: Map<u256, EventData>,
         event_balance: Map<u256, u256>,
         crowd_pass_balance: Map<u256, u256>,
+        event_ticket_holder: Map<u256, Map<ContractAddress, bool>>,
         event_attendance: Map<u256, Map<ContractAddress, bool>>,
+        event_organizer_count: Map<u256, u32>,
+        event_organizers: Map<u256, Map<u32, ContractAddress>>,
+        organizer_event_count: Map<ContractAddress, u256>,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -222,25 +227,109 @@ pub mod EventFactory {
             // assert caller has main organizer role
             self.accesscontrol.assert_only_role(main_organizer_role);
 
-            let event_canceled = self._cancel_event(event_id);
+            // assert event has been created
+            let event_count = self.event_count.read();
+            assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
 
-            event_canceled
+            let mut event_instance = self.events.entry(event_id).read();
+            // assert caller is the main event organizer
+            assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
+            // assert event has not started
+            assert(get_block_timestamp() < event_instance.start_date, Errors::EVENT_STARTED);
+
+            // cancel event here
+            event_instance.is_canceled = true;
+            self.events.entry(event_id).write(event_instance);
+
+            self.emit(EventCanceled { id: event_id });
+
+            true
         }
 
         fn add_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
             let main_organizer_role = self._gen_main_organizer_role(event_id);
             // assert caller has main organizer role
             self.accesscontrol.assert_only_role(main_organizer_role);
-            let event_hash = self._gen_event_hash(event_id);
-            self._add_organizer(event_hash, organizer);
+            let event_role = self._gen_event_role(event_id);
+
+            if !self.accesscontrol.has_role(event_role, organizer) {
+                self.accesscontrol.grant_role(event_role, organizer);
+                let event_organizers_count = self.event_organizer_count.entry(event_id).read();
+                self.event_organizer_count.entry(event_id).write(event_organizers_count + 1);
+                self
+                    .event_organizers
+                    .entry(event_id)
+                    .entry(event_organizers_count + 1)
+                    .write(organizer);
+            }
+        }
+
+        fn add_organizers(
+            ref self: ContractState, event_id: u256, organizers: Span<ContractAddress>
+        ) {
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            // assert caller has main organizer role
+            self.accesscontrol.assert_only_role(main_organizer_role);
+
+            let mut index = 0;
+
+            loop {
+                if organizers.len() < index + 1 {
+                    break;
+                }
+
+                self.add_organizer(event_id, *organizers.at(index));
+
+                index += 1;
+            };
         }
 
         fn remove_organizer(ref self: ContractState, event_id: u256, organizer: ContractAddress) {
             let main_organizer_role = self._gen_main_organizer_role(event_id);
             // assert caller has main organizer role
             self.accesscontrol.assert_only_role(main_organizer_role);
-            let event_hash = self._gen_event_hash(event_id);
-            self._remove_organizer(event_hash, organizer);
+            let event_role = self._gen_event_role(event_id);
+
+            if self.accesscontrol.has_role(event_role, organizer) {
+                self.accesscontrol.revoke_role(event_role, organizer);
+                let event_organizers_count = self.event_organizer_count.entry(event_id).read();
+                // Get last organizer
+                let last_organizer = self
+                    .event_organizers
+                    .entry(event_id)
+                    .entry(event_organizers_count)
+                    .read();
+
+                let organizers = self.get_event_organizers(event_id);
+                let organizer_position: u32 = organizers.position(@organizer).unwrap_or_default();
+
+                self
+                    .event_organizers
+                    .entry(event_id)
+                    .entry(organizer_position)
+                    .write(last_organizer);
+                self.event_organizers.entry(event_id).entry(1).write(Zero::zero());
+                self.event_organizer_count.entry(event_id).write(event_organizers_count - 1);
+            }
+        }
+
+        fn remove_organizers(
+            ref self: ContractState, event_id: u256, organizers: Span<ContractAddress>
+        ) {
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
+            // assert caller has main organizer role
+            self.accesscontrol.assert_only_role(main_organizer_role);
+            let mut index = 0;
+
+            loop {
+                if organizers.len() < index + 1 {
+                    break;
+                }
+
+                self.remove_organizer(event_id, *organizers.at(index));
+
+                index += 1;
+            };
         }
 
         fn purchase_ticket(ref self: ContractState, event_id: u256) -> ContractAddress {
@@ -249,8 +338,8 @@ pub mod EventFactory {
         }
 
         fn check_in(ref self: ContractState, event_id: u256, attendee: ContractAddress) -> bool {
-            let event_hash = self._gen_event_hash(event_id);
-            self.accesscontrol.assert_only_role(event_hash);
+            let event_role = self._gen_event_role(event_id);
+            self.accesscontrol.assert_only_role(event_role);
             self._check_in(event_id, attendee);
             true
         }
@@ -262,12 +351,37 @@ pub mod EventFactory {
         }
 
         fn refund_ticket(ref self: ContractState, event_id: u256, ticket_id: u256) {
-            self._refund_ticket(event_id, ticket_id);
+            let event_instance = self.events.entry(event_id).read();
+            assert(event_instance.is_canceled, Errors::EVENT_NOT_CANCELED);
+            let ticket_address = event_instance.ticket_address;
+            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+
+            let caller = get_caller_address();
+            let tba_address = self._get_tba(ticket_address, ticket_id);
+            assert(caller == tba_address, Errors::CALLER_NOT_TBA);
+
+            let ticket_owner = ticket.owner_of(ticket_id);
+            assert(
+                self.event_attendance.entry(event_id).entry(ticket_owner).read(),
+                Errors::NOT_TICKET_OWNER
+            );
+
+            let ticket_price = event_instance.ticket_price;
+
+            let current_event_balance = self.event_balance.entry(event_id).read();
+            self.event_balance.entry(event_id).write(current_event_balance - ticket_price);
+
+            let success = IERC20Dispatcher {
+                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
+            }
+                .transfer(tba_address, ticket_price);
+
+            assert(success, Errors::REFUND_FAILED);
         }
 
         // -------------- GETTER FUNCTIONS -----------------------
 
-        fn get_all_events(self: @ContractState) -> Array<EventMetadata> {
+        fn get_all_events(self: @ContractState) -> Span<EventMetadata> {
             let mut events = array![];
             let count = self.event_count.read();
             let mut i: u256 = 1;
@@ -276,8 +390,8 @@ pub mod EventFactory {
                 let event: EventData = self.events.entry(i).read();
                 let ticket_address = event.ticket_address;
                 let ticket = ITicket721Dispatcher { contract_address: ticket_address };
-                let mut metadata = EventMetadata {
-                    index: event.index,
+                let metadata = EventMetadata {
+                    id: event.id,
                     organizer: event.organizer,
                     ticket_address: ticket_address,
                     name: ticket.name(),
@@ -295,38 +409,95 @@ pub mod EventFactory {
                 i = i + 1;
             };
 
-            events
+            events.span()
         }
 
         fn get_event(self: @ContractState, event_id: u256) -> EventMetadata {
-            let event = self.events.entry(event_id).read();
-            let ticket_address = event.ticket_address;
+            let event_instance = self.events.entry(event_id).read();
+            let ticket_address = event_instance.ticket_address;
             let ticket = ITicket721Dispatcher { contract_address: ticket_address };
-            let mut metadata = EventMetadata {
-                index: event.index,
-                organizer: event.organizer,
+            let event = EventMetadata {
+                id: event_instance.id,
+                organizer: event_instance.organizer,
                 ticket_address: ticket_address,
                 name: ticket.name(),
                 symbol: ticket.symbol(),
                 uri: ticket.base_uri(),
-                created_at: event.created_at,
-                updated_at: event.updated_at,
-                start_date: event.start_date,
-                end_date: event.end_date,
-                total_tickets: event.total_tickets,
-                ticket_price: event.ticket_price,
-                is_canceled: event.is_canceled,
+                created_at: event_instance.created_at,
+                updated_at: event_instance.updated_at,
+                start_date: event_instance.start_date,
+                end_date: event_instance.end_date,
+                total_tickets: event_instance.total_tickets,
+                ticket_price: event_instance.ticket_price,
+                is_canceled: event_instance.is_canceled,
             };
 
-            metadata
+            event
         }
 
         fn get_event_count(self: @ContractState) -> u256 {
             self.event_count.read()
         }
 
-        fn get_event_attendance(self: @ContractState, event_id: u256) -> bool {
-            self.event_attendance.entry(event_id).entry(get_caller_address()).read()
+        fn get_organizer_event_count(self: @ContractState, organizer: ContractAddress) -> u256 {
+            self.organizer_event_count.entry(organizer).read()
+        }
+
+        fn get_event_balance(self: @ContractState, event_id: u256) -> u256 {
+            self.event_balance.entry(event_id).read()
+        }
+
+        fn get_event_organizers(self: @ContractState, event_id: u256) -> Span<ContractAddress> {
+            let organizers = array![];
+            let event_organizers_count = self.event_organizer_count.entry(event_id).read();
+            let mut index = 1;
+
+            loop {
+                if event_organizers_count < index + 1 {
+                    break;
+                }
+
+                self.event_organizers.entry(event_id).entry(index).read();
+            };
+
+            organizers.span()
+        }
+
+        fn get_available_tickets(self: @ContractState, event_id: u256) -> u256 {
+            let event_instance = self.events.entry(event_id).read();
+            let ticket = ITicket721Dispatcher { contract_address: event_instance.ticket_address };
+            event_instance.total_tickets - ticket.total_supply()
+        }
+
+        fn get_ticket_price_plus_fee(self: @ContractState, event_id: u256) -> u256 {
+            let event_instance = self.events.entry(event_id).read();
+            self._get_ticket_price_plus_fee(event_instance.ticket_price)
+        }
+
+        fn is_ticket_holder(
+            self: @ContractState, event_id: u256, attendee: ContractAddress
+        ) -> bool {
+            self.event_ticket_holder.entry(event_id).entry(attendee).read()
+        }
+
+        fn is_event_attendee(
+            self: @ContractState, event_id: u256, attendee: ContractAddress
+        ) -> bool {
+            self.event_attendance.entry(event_id).entry(attendee).read()
+        }
+
+        fn gen_event_role(self: @ContractState, event_id: u256) -> felt252 {
+            PedersenTrait::new(0)
+                .update('CROWD_PASS_EVENT')
+                .update(event_id.try_into().unwrap())
+                .finalize()
+        }
+
+        fn gen_main_organizer_role(self: @ContractState, event_id: u256) -> felt252 {
+            PedersenTrait::new(0)
+                .update('MAIN_ORGANIZER')
+                .update(self._gen_event_role(event_id))
+                .finalize()
         }
     }
 
@@ -366,7 +537,7 @@ pub mod EventFactory {
     //////////////////////////////////////////////////////////////////////////*//
     #[generate_trait]
     impl PrivateImpl of PrivateTrait {
-        fn _gen_event_hash(self: @ContractState, event_id: u256) -> felt252 {
+        fn _gen_event_role(self: @ContractState, event_id: u256) -> felt252 {
             PedersenTrait::new(0)
                 .update('CROWD_PASS_EVENT')
                 .update(event_id.try_into().unwrap())
@@ -376,8 +547,15 @@ pub mod EventFactory {
         fn _gen_main_organizer_role(self: @ContractState, event_id: u256) -> felt252 {
             PedersenTrait::new(0)
                 .update('MAIN_ORGANIZER')
-                .update(self._gen_event_hash(event_id))
+                .update(self._gen_event_role(event_id))
                 .finalize()
+        }
+
+        fn _get_ticket_price_plus_fee(self: @ContractState, price: u256) -> u256 {
+            let padded_price = price * E18;
+            let padded_price_plus_fee = padded_price + ((padded_price * 3) / 100);
+            let price_plus_fee = padded_price_plus_fee / E18;
+            price_plus_fee
         }
 
         fn _create_event(
@@ -390,24 +568,24 @@ pub mod EventFactory {
             total_tickets: u256,
             ticket_price: u256,
         ) -> EventData {
-            assert(end_date > start_date + 86400, Errors::INVALID_EVENT_DURATION);
-            
-            let caller = get_caller_address();
+            assert(end_date > start_date + 86399, Errors::INVALID_EVENT_DURATION);
+
+            let organizer = get_caller_address();
             let event_count = self.event_count.read() + 1;
             let address_this = get_contract_address();
 
             // create event role
-            let event_hash = self._gen_event_hash(event_count);
+            let event_role = self._gen_event_role(event_count);
             let main_organizer_role = self._gen_main_organizer_role(event_count);
-            // grant caller main organizer role
-            self.accesscontrol._grant_role(main_organizer_role, caller);
+            // grant main organizer role
+            self.accesscontrol._grant_role(main_organizer_role, organizer);
             // set main organizer role as the admin role for this event role
-            self.accesscontrol.set_role_admin(event_hash, main_organizer_role);
+            self.accesscontrol.set_role_admin(event_role, main_organizer_role);
 
             // deploy ticket721 contract
             let ticket = deploy_syscall(
                 TICKET_721_CLASS_HASH.try_into().unwrap(),
-                event_hash,
+                event_role,
                 array![address_this.into(), address_this.into()].span(),
                 true,
             );
@@ -419,8 +597,8 @@ pub mod EventFactory {
 
             // new event struct instance
             let event_instance = EventData {
-                index: event_count,
-                organizer: caller,
+                id: event_count,
+                organizer: organizer,
                 ticket_address: ticket_address,
                 created_at: get_block_timestamp(),
                 updated_at: 0,
@@ -431,21 +609,29 @@ pub mod EventFactory {
                 is_canceled: false,
             };
 
+            // Take a snapshot of `event_instance`
+            let event_snapshot = @event_instance;
+
             // Map event_id to new_event
-            self.events.entry(event_count).write(event_instance);
+            self.events.entry(event_count).write(*event_snapshot);
 
             // Update event count
             self.event_count.write(event_count);
+
+            self
+                .organizer_event_count
+                .entry(organizer)
+                .write(self.organizer_event_count.entry(organizer).read() + 1);
 
             // emit event for event creation
             self
                 .emit(
                     EventCreated {
-                        id: event_count, organizer: caller, ticket_address: ticket_address
+                        id: event_count, organizer: organizer, ticket_address: ticket_address
                     }
                 );
 
-            self.events.entry(event_count).read()
+            *event_snapshot
         }
 
         fn _update_event(
@@ -471,10 +657,10 @@ pub mod EventFactory {
             let empty_str = "";
             // update event ticket
             if name != empty_str || name != ticket.name() {
-                ticket.update_name(name);
+                ticket.set_name(name);
             }
             if symbol != empty_str || symbol != ticket.symbol() {
-                ticket.update_symbol(symbol);
+                ticket.set_symbol(symbol);
             }
             if uri != empty_str || uri != ticket.base_uri() {
                 ticket.set_base_uri(uri);
@@ -486,45 +672,14 @@ pub mod EventFactory {
             event_instance.total_tickets = total_tickets;
             event_instance.ticket_price = ticket_price;
 
-            self.events.entry(index).write(event_instance);
+            // Take a snapshot of `event_instance`
+            let event_snapshot = @event_instance;
+
+            self.events.entry(index).write(*event_snapshot);
 
             self.emit(EventUpdated { id: index, start_date: start_date, end_date: end_date });
 
-            self.events.entry(index).read()
-        }
-
-        fn _cancel_event(ref self: ContractState, event_id: u256) -> bool {
-            // assert event has been created
-            let event_count = self.event_count.read();
-            assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
-
-            let mut event_instance = self.events.entry(event_id).read();
-            // assert caller is the main event organizer
-            assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
-            // assert event has not ended
-            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
-
-            // cancel event here
-            event_instance.is_canceled = true;
-            self.events.entry(event_id).write(event_instance);
-
-            self.emit(EventCanceled { id: event_id });
-
-            true
-        }
-
-        fn _add_organizer(
-            ref self: ContractState, event_hash: felt252, organizer: ContractAddress
-        ) {
-            // grant role to caller
-            self.accesscontrol.grant_role(event_hash, organizer);
-        }
-
-        fn _remove_organizer(
-            ref self: ContractState, event_hash: felt252, organizer: ContractAddress
-        ) {
-            // revoke role from caller
-            self.accesscontrol.revoke_role(event_hash, organizer);
+            *event_snapshot
         }
 
         fn _purchase_ticket(ref self: ContractState, event_id: u256) -> ContractAddress {
@@ -535,7 +690,7 @@ pub mod EventFactory {
             let event_count: u256 = self.event_count.read();
             // assert is_valid event
             assert(event_id <= event_count, Errors::EVENT_NOT_CREATED);
-            
+
             let mut event_instance: EventData = self.events.entry(event_id).read();
             // assert event is not canceled
             assert(!event_instance.is_canceled, Errors::EVENT_CANCELED);
@@ -545,29 +700,34 @@ pub mod EventFactory {
             let ticket_address = event_instance.ticket_address;
             let ticket = ITicket721Dispatcher { contract_address: ticket_address };
 
+            let ticket_id = ticket.total_supply() + 1;
+            assert(ticket_id <= event_instance.total_tickets, Errors::EVENT_SOLD_OUT);
+
             // assert buyer does not have a ticket to mitigate scalping
             assert(ticket.balance_of(buyer) == 0, Errors::ALREADY_MINTED);
-
-            // verify if caller has enough strk token for the ticket_price + 3% fee
-            let ticket_price = event_instance.ticket_price;
-            let ticket_price_padded = ticket_price * E18;
-            let ticket_price_padded_plus_fee = ticket_price_padded
-                + ((ticket_price_padded * 3) / 100);
-            let ticket_price_plus_fee = ticket_price_padded_plus_fee / E18;
 
             let strk_token = IERC20Dispatcher {
                 contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
             };
+
+            // verify if caller has enough strk token for the ticket_price + 3% fee
+            let ticket_price = event_instance.ticket_price;
+            let ticket_price_plus_fee = self
+                ._get_ticket_price_plus_fee(ticket_price);
+            
+            let event_factory_address = get_contract_address();
+            assert(
+                strk_token.allowance(buyer, event_factory_address) == ticket_price_plus_fee,
+                Errors::INSUFFICIENT_ALLOWANCE
+            );
+            
             assert(
                 strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE
             );
 
-            let ticket_id = ticket.total_supply() + 1;
-            assert(ticket_id <= event_instance.total_tickets, Errors::EVENT_SOLD_OUT);
-
             // transfer the ticket price to the contract
             assert(
-                strk_token.transfer_from(buyer, get_contract_address(), ticket_price_plus_fee),
+                strk_token.transfer_from(buyer, event_factory_address, ticket_price_plus_fee),
                 Errors::TRANSFER_FAILED
             );
 
@@ -585,6 +745,10 @@ pub mod EventFactory {
             ticket.safe_mint(buyer);
 
             let tba_address = self._create_tba(ticket_address, ticket_id);
+
+            if !self.event_ticket_holder.entry(event_id).entry(buyer).read() {
+                self.event_ticket_holder.entry(event_id).entry(buyer).write(true);
+            }
 
             // emit event for ticket purchase
             self
@@ -663,35 +827,6 @@ pub mod EventFactory {
                 );
         }
 
-        fn _refund_ticket(ref self: ContractState, event_id: u256, ticket_id: u256) {
-            let event_instance = self.events.entry(event_id).read();
-            assert(event_instance.is_canceled, Errors::EVENT_NOT_CANCELED);
-            let ticket_address = event_instance.ticket_address;
-            let ticket = ITicket721Dispatcher { contract_address: ticket_address };
-
-            let caller = get_caller_address();
-            let tba_address = self._get_tba(ticket_address, ticket_id);
-            assert(caller == tba_address, Errors::CALLER_NOT_TBA);
-
-            let ticket_owner = ticket.owner_of(ticket_id);
-            assert(
-                self.event_attendance.entry(event_id).entry(ticket_owner).read(),
-                Errors::NOT_TICKET_OWNER
-            );
-
-            let ticket_price = event_instance.ticket_price;
-
-            let current_event_balance = self.event_balance.entry(event_id).read();
-            self.event_balance.entry(event_id).write(current_event_balance - ticket_price);
-
-            let success = IERC20Dispatcher {
-                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
-            }
-                .transfer(tba_address, ticket_price);
-
-            assert(success, Errors::REFUND_FAILED);
-        }
-
         fn _create_tba(
             self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
         ) -> ContractAddress {
@@ -727,3 +862,6 @@ pub mod EventFactory {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {}
