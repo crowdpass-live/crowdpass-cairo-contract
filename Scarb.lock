@@ -2,9 +2,16 @@
 version = 1
 
 [[package]]
+name = "alexandria_data_structures"
+version = "0.4.0"
+source = "registry+https://scarbs.xyz/"
+checksum = "sha256:72bdee057923061f6719c82ac9d92c9c9bb39f3fbb9c369f64aa9e6d5b0b2425"
+
+[[package]]
 name = "crowd_pass"
 version = "0.0.200"
 dependencies = [
+ "alexandria_data_structures",
  "openzeppelin",
  "snforge_std",
  "token_bound_accounts",
