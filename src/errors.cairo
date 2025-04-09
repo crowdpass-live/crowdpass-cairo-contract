@@ -17,6 +17,7 @@ pub mod Errors {
     pub const EVENT_SOLD_OUT: felt252 = 'Event is sold out';
     pub const INVALID_EVENT_DURATION: felt252 = 'Event duration less than 24h';
     pub const INSUFFICIENT_BALANCE: felt252 = 'Balance is low';
+    pub const INSUFFICIENT_ALLOWANCE: felt252 = 'Allowance is not enough';
     pub const LOW_TOKEN_ALLOWANCE: felt252 = 'Token allowance too low';
     pub const NOT_TICKET_HOLDER: felt252 = 'Balance_of less than 1';
     pub const NOT_TICKET_OWNER: felt252 = 'Not ticket owner';
