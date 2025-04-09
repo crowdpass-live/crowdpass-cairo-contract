@@ -2,7 +2,8 @@ use starknet::{ContractAddress, get_block_timestamp, get_tx_info};
 
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global
+    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
+    test_address
 };
 use core::{pedersen::PedersenTrait, hash::HashStateTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -16,7 +17,7 @@ use crowd_pass::{
 
 const STRK_TOKEN_ADDR: felt252 = 0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
 const TICKET_NFT_CLASS_HASH: felt252 =
-    0x02932c15f926119f4601b9914a38f7a9861effa19e3a7bfe3d14ce0528e6a908;
+    0x01a6143d240fc4bfe546698326e56089d8345c790765fd190d495b3b19144074;
 const TBA_REGISTRY_CLASS_HASH: felt252 =
     0x2cbf50931c7ec9029c5188985ea5fa8aedc728d352bde12ec889c212f0e8b3;
 const TBA_REGISTRY_CONTRACT_ADDRESS: felt252 =
@@ -28,7 +29,7 @@ const ADMIN: felt252 = 'admin';
 const ORGANIZER: felt252 = 'organizer';
 const ACCOUNT1: felt252 = 1234;
 
-const STRK_WHALE: felt252 = 0x0590e76a2e65435b7288bf3526cfa5c3ec7748d2f3433a934c931cce62460fc5;
+const STRK_WHALE: felt252 = 0x03119564DDE82cc1319aEb21506f6bc9c3e3061BaAdb63ddFeC3410A69C11F86;
 
 fn deploy_contract(name: ByteArray) -> ContractAddress {
     let contract = declare(name).unwrap().contract_class();
@@ -46,7 +47,7 @@ fn gen_main_organizer_role(event_id: u256) -> felt252 {
 
 fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
     let event_factory_contract = declare("EventFactory").unwrap().contract_class();
-    let calldata = array![ORGANIZER];
+    let calldata = array![ADMIN];
     let (event_factory_address, _) = event_factory_contract.deploy(@calldata).unwrap();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
@@ -55,25 +56,13 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
     let name = "Test Event";
     let symbol = "TEST";
     let uri = "ipfs://test-uri-metadata-hash";
-    let description = "Test Description";
-    let location = "Test Location";
-    let start_date: u64 = get_block_timestamp();
-    let end_date: u64 = start_date + 86400; // 1 day later
+    let start_date: u64 = get_block_timestamp() + 86400; // 1 day later
+    let end_date: u64 = start_date + 172800; // 2 days later
     let total_tickets: u256 = 100;
     let ticket_price: u256 = 1000000000000000000; // 1 token 
 
     let event = event_factory
-        .create_event(
-            name,
-            symbol,
-            uri,
-            description,
-            location,
-            start_date,
-            end_date,
-            total_tickets,
-            ticket_price
-        );
+        .create_event(name, symbol, uri, start_date, end_date, total_tickets, ticket_price);
 
     let ticket_address: ContractAddress = event.ticket_address;
     let ticket = ITicket721Dispatcher { contract_address: ticket_address };
@@ -92,13 +81,22 @@ fn test_create_event() {
     assert(ticket.symbol() == "TEST", 'Invalid event symbol');
     assert(ticket.base_uri() == "ipfs://test-uri-metadata-hash", 'Invalid event uri');
     assert(event.organizer == ORGANIZER.try_into().unwrap(), 'Invalid organizer');
-    assert(event.description == "Test Description", 'Invalid description');
-    assert(event.location == "Test Location", 'Invalid location');
-    assert(event.start_date <= get_block_timestamp(), 'Invalid start date');
-    assert(event.end_date == event.start_date + 86400, 'Invalid end date');
+    assert(event.start_date <= get_block_timestamp() + 86400, 'Invalid start date');
+    assert(event.end_date == event.start_date + 172800, 'Invalid end date');
     assert(event.total_tickets == 100, 'Invalid total tickets');
     assert(event.ticket_price == 1000000000000000000, 'Invalid ticket price');
     assert(ticket.total_supply() == 0, 'Invalid total supply');
+}
+
+#[test]
+#[fork("SEPOLIA_LATEST")]
+#[should_panic(expected: 'Allowance is not enough')]
+fn should_panic_purchase_ticket_without_approval() {
+    // prank organizer and create event
+    let (event_factory_address, event, ticket) = create_event();
+    let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
+
+    let tba_address = event_factory.purchase_ticket(1);
 }
 
 #[test]
@@ -111,17 +109,25 @@ fn test_purchase_ticket() {
     // stop organizer prank
     stop_cheat_caller_address(event_factory_address);
 
+    let test_address = test_address();
+
     // import strk token
     let strk_address: ContractAddress = STRK_TOKEN_ADDR.try_into().unwrap();
     let strk = IERC20Dispatcher { contract_address: strk_address };
 
-    // start strk whale prank on event factory
-    start_cheat_caller_address(event_factory_address, STRK_WHALE.try_into().unwrap());
-    strk.approve(event_factory_address, 100000000000000000000);
-    stop_cheat_caller_address(event_factory_address);
+    // start_cheat_caller_address(test_address(), STRK_WHALE.try_into().unwrap());
+    // strk.transfer(ACCOUNT1.try_into().unwrap(), 100000000000000000000);
 
+    // start_cheat_caller_address_global(STRK_WHALE.try_into().unwrap());
+    start_cheat_caller_address(test_address, STRK_WHALE.try_into().unwrap());
+    strk.approve(test_address, 1000000000000000000 + ((1000000000000000000 * 3) / 100));
+    strk.approve(event_factory_address, 1000000000000000000 + ((1000000000000000000 * 3) / 100));
+    stop_cheat_caller_address(test_address);
     // purchase ticket
+    start_cheat_caller_address(event_factory_address, STRK_WHALE.try_into().unwrap());
     let tba_address = event_factory.purchase_ticket(1);
+    // stop_cheat_caller_address(event_factory_address);
+    // stop_cheat_caller_address_global();
 
     let tba_registry = IRegistryDispatcher {
         contract_address: TBA_REGISTRY_CONTRACT_ADDRESS.try_into().unwrap()
@@ -213,4 +219,5 @@ fn test_remove_organizer() {
 //         }
 //     };
 // }
+
 
