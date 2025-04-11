@@ -7,7 +7,7 @@ use snforge_std::{
 };
 use core::{pedersen::PedersenTrait, hash::HashStateTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-use token_bound_accounts::interfaces::IRegistry::{IRegistryDispatcher, IRegistryDispatcherTrait};
+use token_bound_accounts::interfaces::IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait};
 use crowd_pass::{
     interfaces::{
         i_event_factory::{EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait},
@@ -45,7 +45,7 @@ fn gen_main_organizer_role(event_id: u256) -> felt252 {
     PedersenTrait::new(0).update('MAIN_ORGANIZER').update(gen_event_hash(event_id)).finalize()
 }
 
-fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
+fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher) {
     let event_factory_contract = declare("EventFactory").unwrap().contract_class();
     let calldata = array![ADMIN];
     let (event_factory_address, _) = event_factory_contract.deploy(@calldata).unwrap();
@@ -63,9 +63,13 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher,) {
 
     let event = event_factory
         .create_event(name, symbol, uri, start_date, end_date, total_tickets, ticket_price);
-
+    
     let ticket_address: ContractAddress = event.ticket_address;
     let ticket = ITicket721Dispatcher { contract_address: ticket_address };
+
+    println!("Ticket address: {:?}", ticket_address);
+    println!("Ticket total supply: {:?}", ticket.total_supply());
+
     (event_factory_address, event, ticket)
 }
 
@@ -93,7 +97,7 @@ fn test_create_event() {
 #[should_panic(expected: 'Allowance is not enough')]
 fn should_panic_purchase_ticket_without_approval() {
     // prank organizer and create event
-    let (event_factory_address, event, ticket) = create_event();
+    let (event_factory_address, _, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     let tba_address = event_factory.purchase_ticket(1);
@@ -115,34 +119,34 @@ fn test_purchase_ticket() {
     let strk_address: ContractAddress = STRK_TOKEN_ADDR.try_into().unwrap();
     let strk = IERC20Dispatcher { contract_address: strk_address };
 
-    // start_cheat_caller_address(test_address(), STRK_WHALE.try_into().unwrap());
-    // strk.transfer(ACCOUNT1.try_into().unwrap(), 100000000000000000000);
-
-    // start_cheat_caller_address_global(STRK_WHALE.try_into().unwrap());
-    start_cheat_caller_address(test_address, STRK_WHALE.try_into().unwrap());
-    strk.approve(test_address, 1000000000000000000 + ((1000000000000000000 * 3) / 100));
+    // approve strk token
+    start_cheat_caller_address(strk_address, STRK_WHALE.try_into().unwrap());
     strk.approve(event_factory_address, 1000000000000000000 + ((1000000000000000000 * 3) / 100));
-    stop_cheat_caller_address(test_address);
+    stop_cheat_caller_address(strk_address);
+
     // purchase ticket
     start_cheat_caller_address(event_factory_address, STRK_WHALE.try_into().unwrap());
     let tba_address = event_factory.purchase_ticket(1);
-    // stop_cheat_caller_address(event_factory_address);
-    // stop_cheat_caller_address_global();
+    stop_cheat_caller_address(event_factory_address);
 
-    let tba_registry = IRegistryDispatcher {
-        contract_address: TBA_REGISTRY_CONTRACT_ADDRESS.try_into().unwrap()
+    let tba_registry = IRegistryLibraryDispatcher {
+        class_hash: TBA_REGISTRY_CLASS_HASH.try_into().unwrap()
     };
+    println!("TBA address: {:?}", tba_address);
 
     let derived_tba_address = tba_registry
         .get_account(
             TBA_ACCOUNTV3_CLASS_HASH.try_into().unwrap(),
             event.ticket_address,
-            event.id,
-            event.id.try_into().unwrap(),
+            ticket.total_supply(),
+            ticket.total_supply().try_into().unwrap(),
             get_tx_info().chain_id
         );
+    println!("Ticket address: {:?}", event.ticket_address);
+    println!("Token ID: {:?}", ticket.total_supply());
+    println!("Chain ID: {:?}", get_tx_info().chain_id);
+    println!("Derived TBA address: {:?}", derived_tba_address);
 
-    assert(tba_address == derived_tba_address, 'Invalid TBA address');
     assert(ticket.balance_of(STRK_WHALE.try_into().unwrap()) == 1, 'Invalid ticket balance');
     assert(ticket.total_supply() == 1, 'Invalid total supply');
     assert(
@@ -150,16 +154,16 @@ fn test_purchase_ticket() {
             + ((1000000000000000000 * 3) / 100),
         'Invalid contract balance'
     );
+    assert(tba_address == derived_tba_address, 'Invalid TBA address');
 }
 
 #[test]
 #[fork("SEPOLIA_LATEST")]
 fn test_cancel_event() {
-    let (event_factory_address, _, _) = create_event();
+    let (event_factory_address, event_data, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     let event_canceled = event_factory.cancel_event(1);
-    let event_data = event_factory.get_event(1);
 
     assert(event_canceled, 'Event cancellation failed');
     assert(event_data.is_canceled == true, 'Event not canceled');
