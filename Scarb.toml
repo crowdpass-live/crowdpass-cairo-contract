@@ -1,6 +1,6 @@
 [package]
 name = "crowd_pass"
-description = "A ticketing platform for Starknet"
+description = "A ticketing platform on Starknet"
 version = "0.0.200"
 edition = "2024_07"
 authors = [
