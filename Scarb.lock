@@ -133,13 +133,13 @@ checksum = "sha256:36d93e353f42fd6b824abcd8b4b51c3f5d02c893c5f886ae81403b0368aa5
 
 [[package]]
 name = "snforge_scarb_plugin"
-version = "0.40.0"
-source = "git+https://github.com/foundry-rs/starknet-foundry?tag=v0.40.0#c20f7692c1a2936327d86b7e2c89c5462f8afdcd"
+version = "0.41.0"
+source = "git+https://github.com/foundry-rs/starknet-foundry?tag=v0.41.0#d6589e67bd93fbc604560d49566a79ca951e195a"
 
 [[package]]
 name = "snforge_std"
-version = "0.40.0"
-source = "git+https://github.com/foundry-rs/starknet-foundry?tag=v0.40.0#c20f7692c1a2936327d86b7e2c89c5462f8afdcd"
+version = "0.41.0"
+source = "git+https://github.com/foundry-rs/starknet-foundry?tag=v0.41.0#d6589e67bd93fbc604560d49566a79ca951e195a"
 dependencies = [
  "snforge_scarb_plugin",
 ]
