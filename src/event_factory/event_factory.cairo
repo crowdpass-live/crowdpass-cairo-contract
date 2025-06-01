@@ -201,7 +201,7 @@ pub mod EventFactory {
 
         fn update_event(
             ref self: ContractState,
-            index: u256,
+            event_id: u256,
             name: ByteArray,
             symbol: ByteArray,
             uri: ByteArray,
@@ -210,16 +210,44 @@ pub mod EventFactory {
             total_tickets: u256,
             ticket_price: u256,
         ) -> EventData {
-            let main_organizer_role = self._gen_main_organizer_role(index);
+            let main_organizer_role = self._gen_main_organizer_role(event_id);
             // assert caller has main organizer role
             self.accesscontrol.assert_only_role(main_organizer_role);
 
-            let event = self
-                ._update_event(
-                    index, name, symbol, uri, start_date, end_date, total_tickets, ticket_price
-                );
+            let mut event_instance = self.events.entry(event_id).read();
+            // assert event has not ended
+            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
+            // assert caller is the main organizer
+            assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
 
-            event
+            let ticket = ITicket721Dispatcher { contract_address: event_instance.ticket_address };
+
+            // update event ticket
+            if name.len().is_non_zero() || name != ticket.name() {
+                ticket.set_name(name);
+            }
+            if symbol.len().is_non_zero() || symbol != ticket.symbol() {
+                ticket.set_symbol(symbol);
+            }
+            if uri.len().is_non_zero() || uri != ticket.base_uri() {
+                ticket.set_base_uri(uri);
+            }
+
+            // update event instance
+            event_instance.updated_at = get_block_timestamp();
+            event_instance.start_date = start_date;
+            event_instance.end_date = end_date;
+            event_instance.total_tickets = total_tickets;
+            event_instance.ticket_price = ticket_price;
+
+            // Take a snapshot of `event_instance`
+            let event_snapshot = @event_instance;
+
+            self.events.entry(event_id).write(*event_snapshot);
+
+            self.emit(EventUpdated { id: event_id, start_date: start_date, end_date: end_date });
+
+            *event_snapshot
         }
 
         fn cancel_event(ref self: ContractState, event_id: u256) -> bool {
@@ -568,7 +596,7 @@ pub mod EventFactory {
             total_tickets: u256,
             ticket_price: u256,
         ) -> EventData {
-            assert(end_date > start_date + 86399, Errors::INVALID_EVENT_DURATION);
+            assert(end_date > start_date + 86399, Errors::INVALID_EVENT_DURATION); // 1 day
 
             let organizer = get_caller_address();
             let event_count = self.event_count.read() + 1;
@@ -634,54 +662,6 @@ pub mod EventFactory {
             *event_snapshot
         }
 
-        fn _update_event(
-            ref self: ContractState,
-            index: u256,
-            name: ByteArray,
-            symbol: ByteArray,
-            uri: ByteArray,
-            start_date: u64,
-            end_date: u64,
-            total_tickets: u256,
-            ticket_price: u256,
-        ) -> EventData {
-            let mut event_instance = self.events.entry(index).read();
-            // assert event has not ended
-            assert(event_instance.end_date > get_block_timestamp(), Errors::EVENT_ENDED);
-            // assert caller is the main organizer
-            assert(get_caller_address() == event_instance.organizer, Errors::NOT_EVENT_ORGANIZER);
-
-            let ticket = ITicket721Dispatcher { contract_address: event_instance.ticket_address };
-
-            // TODO: empty string or ByteArray might not equal to "".
-            let empty_str = "";
-            // update event ticket
-            if name != empty_str || name != ticket.name() {
-                ticket.set_name(name);
-            }
-            if symbol != empty_str || symbol != ticket.symbol() {
-                ticket.set_symbol(symbol);
-            }
-            if uri != empty_str || uri != ticket.base_uri() {
-                ticket.set_base_uri(uri);
-            }
-            // update event instance
-            event_instance.updated_at = get_block_timestamp();
-            event_instance.start_date = start_date;
-            event_instance.end_date = end_date;
-            event_instance.total_tickets = total_tickets;
-            event_instance.ticket_price = ticket_price;
-
-            // Take a snapshot of `event_instance`
-            let event_snapshot = @event_instance;
-
-            self.events.entry(index).write(*event_snapshot);
-
-            self.emit(EventUpdated { id: index, start_date: start_date, end_date: end_date });
-
-            *event_snapshot
-        }
-
         fn _purchase_ticket(ref self: ContractState, event_id: u256) -> ContractAddress {
             let buyer: ContractAddress = get_caller_address();
             // assert caller is not address 0
@@ -712,15 +692,14 @@ pub mod EventFactory {
 
             // verify if caller has enough strk token for the ticket_price + 3% fee
             let ticket_price = event_instance.ticket_price;
-            let ticket_price_plus_fee = self
-                ._get_ticket_price_plus_fee(ticket_price);
-            
+            let ticket_price_plus_fee = self._get_ticket_price_plus_fee(ticket_price);
+
             let event_factory_address = get_contract_address();
             assert(
                 strk_token.allowance(buyer, event_factory_address) == ticket_price_plus_fee,
                 Errors::INSUFFICIENT_ALLOWANCE
             );
-            
+
             assert(
                 strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE
             );

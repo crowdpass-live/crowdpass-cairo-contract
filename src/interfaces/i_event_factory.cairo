@@ -15,7 +15,7 @@ pub trait IEventFactory<TContractState> {
     ) -> EventData;
     fn update_event(
         ref self: TContractState,
-        index: u256,
+        event_id: u256,
         name: ByteArray,
         symbol: ByteArray,
         uri: ByteArray,
@@ -28,7 +28,9 @@ pub trait IEventFactory<TContractState> {
     fn add_organizer(ref self: TContractState, event_id: u256, organizer: ContractAddress);
     fn add_organizers(ref self: TContractState, event_id: u256, organizers: Span<ContractAddress>);
     fn remove_organizer(ref self: TContractState, event_id: u256, organizer: ContractAddress);
-    fn remove_organizers(ref self: TContractState, event_id: u256, organizers: Span<ContractAddress>);
+    fn remove_organizers(
+        ref self: TContractState, event_id: u256, organizers: Span<ContractAddress>
+    );
     fn purchase_ticket(ref self: TContractState, event_id: u256) -> ContractAddress;
     fn check_in(ref self: TContractState, event_id: u256, attendee: ContractAddress) -> bool;
     fn collect_event_payout(ref self: TContractState, event_id: u256);
