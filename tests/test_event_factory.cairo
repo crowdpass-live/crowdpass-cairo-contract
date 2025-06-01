@@ -1,13 +1,16 @@
+//*//////////////////////////////////////////////////////////////////////////
+//                                 IMPORTS
+//////////////////////////////////////////////////////////////////////////*//
 use starknet::{ContractAddress, get_block_timestamp, get_tx_info};
-
 use snforge_std::{
     declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
-    stop_cheat_caller_address, start_cheat_caller_address_global, stop_cheat_caller_address_global,
-    test_address
+    stop_cheat_caller_address,
 };
 use core::{pedersen::PedersenTrait, hash::HashStateTrait};
 use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-use token_bound_accounts::interfaces::IRegistry::{IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait};
+use token_bound_accounts::interfaces::IRegistry::{
+    IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait
+};
 use crowd_pass::{
     interfaces::{
         i_event_factory::{EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait},
@@ -15,6 +18,9 @@ use crowd_pass::{
     }
 };
 
+//*//////////////////////////////////////////////////////////////////////////
+//                                 CONSTANTS
+//////////////////////////////////////////////////////////////////////////*//
 const STRK_TOKEN_ADDR: felt252 = 0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
 const TICKET_NFT_CLASS_HASH: felt252 =
     0x01a6143d240fc4bfe546698326e56089d8345c790765fd190d495b3b19144074;
@@ -31,6 +37,9 @@ const ACCOUNT1: felt252 = 1234;
 
 const STRK_WHALE: felt252 = 0x03119564DDE82cc1319aEb21506f6bc9c3e3061BaAdb63ddFeC3410A69C11F86;
 
+//*//////////////////////////////////////////////////////////////////////////
+//                                   SETUP
+//////////////////////////////////////////////////////////////////////////*//
 fn deploy_contract(name: ByteArray) -> ContractAddress {
     let contract = declare(name).unwrap().contract_class();
     let (contract_address, _) = contract.deploy(@ArrayTrait::new()).unwrap();
@@ -63,7 +72,7 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher) {
 
     let event = event_factory
         .create_event(name, symbol, uri, start_date, end_date, total_tickets, ticket_price);
-    
+
     let ticket_address: ContractAddress = event.ticket_address;
     let ticket = ITicket721Dispatcher { contract_address: ticket_address };
 
@@ -73,6 +82,9 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher) {
     (event_factory_address, event, ticket)
 }
 
+//*//////////////////////////////////////////////////////////////////////////
+//                                   TESTS
+//////////////////////////////////////////////////////////////////////////*//
 #[test]
 #[fork("SEPOLIA_LATEST")]
 fn test_create_event() {
@@ -112,8 +124,6 @@ fn test_purchase_ticket() {
 
     // stop organizer prank
     stop_cheat_caller_address(event_factory_address);
-
-    let test_address = test_address();
 
     // import strk token
     let strk_address: ContractAddress = STRK_TOKEN_ADDR.try_into().unwrap();
@@ -160,10 +170,11 @@ fn test_purchase_ticket() {
 #[test]
 #[fork("SEPOLIA_LATEST")]
 fn test_cancel_event() {
-    let (event_factory_address, event_data, _) = create_event();
+    let (event_factory_address, _, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
 
     let event_canceled = event_factory.cancel_event(1);
+    let event_data = event_factory.get_event(1);
 
     assert(event_canceled, 'Event cancellation failed');
     assert(event_data.is_canceled == true, 'Event not canceled');
