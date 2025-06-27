@@ -407,7 +407,9 @@ pub mod EventFactory {
             assert(success, Errors::REFUND_FAILED);
         }
 
-        // -------------- GETTER FUNCTIONS -----------------------
+        //*//////////////////////////////////////////////////////////////////////////
+        //                               VIEW FUNCTIONS
+        //////////////////////////////////////////////////////////////////////////*//
 
         fn get_all_events(self: @ContractState) -> Span<EventMetadata> {
             let mut events = array![];
@@ -633,7 +635,7 @@ pub mod EventFactory {
                 start_date: start_date,
                 end_date: end_date,
                 total_tickets: total_tickets,
-                ticket_price: ticket_price,
+                ticket_price: ticket_price, 
                 is_canceled: false,
             };
 

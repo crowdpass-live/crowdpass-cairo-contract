@@ -64,7 +64,7 @@ pub struct EventData {
     pub is_canceled: bool,
 }
 
-#[derive(Drop, Serde, starknet::Store)]
+#[derive(Drop, Serde)]
 pub struct EventMetadata {
     pub id: u256,
     pub organizer: ContractAddress,
