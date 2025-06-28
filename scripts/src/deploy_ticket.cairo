@@ -1,5 +1,5 @@
 use sncast_std::{
-    declare, deploy, invoke, call, DeclareResultTrait, get_nonce, FeeSettings, EthFeeSettings,
+    DeclareResultTrait, EthFeeSettings, FeeSettings, call, declare, deploy, get_nonce, invoke,
     // CallResult, DeclareResult, DeployResult, InvokeResult
 };
 // use crowd_pass::ticket::ticket_721::Ticket721;
@@ -13,7 +13,7 @@ fn main() {
     let declare_result = declare(
         "Ticket721",
         FeeSettings::Eth(EthFeeSettings { max_fee: Option::Some(max_fee) }),
-        Option::Some(declare_nonce)
+        Option::Some(declare_nonce),
     )
         .expect('ticket declare failed');
 
@@ -46,7 +46,7 @@ fn main() {
         Option::None,
         true,
         FeeSettings::Eth(EthFeeSettings { max_fee: Option::Some(max_fee) }),
-        Option::Some(deploy_nonce)
+        Option::Some(deploy_nonce),
     )
         .expect('ticket deploy failed');
 
@@ -60,7 +60,7 @@ fn main() {
         selector!("initialize"),
         array![creator.into(), creator.into()],
         FeeSettings::Eth(EthFeeSettings { max_fee: Option::Some(max_fee) }),
-        Option::Some(invoke_nonce)
+        Option::Some(invoke_nonce),
     )
         .expect('map invoke failed');
 

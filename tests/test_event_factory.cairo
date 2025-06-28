@@ -1,21 +1,20 @@
 //*//////////////////////////////////////////////////////////////////////////
 //                                 IMPORTS
-//////////////////////////////////////////////////////////////////////////*//
-use starknet::{ContractAddress, get_block_timestamp, get_tx_info};
+use core::hash::HashStateTrait;
+use core::pedersen::PedersenTrait;
+use crowd_pass::interfaces::i_event_factory::{
+    EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait,
+};
+use crowd_pass::interfaces::i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait};
+use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
 use snforge_std::{
-    declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address,
+    ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
     stop_cheat_caller_address,
 };
-use core::{pedersen::PedersenTrait, hash::HashStateTrait};
-use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+//////////////////////////////////////////////////////////////////////////*//
+use starknet::{ContractAddress, get_block_timestamp, get_tx_info};
 use token_bound_accounts::interfaces::IRegistry::{
-    IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait
-};
-use crowd_pass::{
-    interfaces::{
-        i_event_factory::{EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait},
-        i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait}
-    }
+    IRegistryDispatcher, IRegistryDispatcherTrait, IRegistryLibraryDispatcher,
 };
 
 //*//////////////////////////////////////////////////////////////////////////
@@ -140,7 +139,7 @@ fn test_purchase_ticket() {
     stop_cheat_caller_address(event_factory_address);
 
     let tba_registry = IRegistryLibraryDispatcher {
-        class_hash: TBA_REGISTRY_CLASS_HASH.try_into().unwrap()
+        class_hash: TBA_REGISTRY_CLASS_HASH.try_into().unwrap(),
     };
     println!("TBA address: {:?}", tba_address);
 
@@ -150,7 +149,7 @@ fn test_purchase_ticket() {
             event.ticket_address,
             ticket.total_supply(),
             ticket.total_supply().try_into().unwrap(),
-            get_tx_info().chain_id
+            get_tx_info().chain_id,
         );
     println!("Ticket address: {:?}", event.ticket_address);
     println!("Token ID: {:?}", ticket.total_supply());
@@ -162,7 +161,7 @@ fn test_purchase_ticket() {
     assert(
         strk.balance_of(event_factory_address) == 1000000000000000000
             + ((1000000000000000000 * 3) / 100),
-        'Invalid contract balance'
+        'Invalid contract balance',
     );
     assert(tba_address == derived_tba_address, 'Invalid TBA address');
 }

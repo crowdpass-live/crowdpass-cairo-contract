@@ -29,7 +29,7 @@ pub trait IEventFactory<TContractState> {
     fn add_organizers(ref self: TContractState, event_id: u256, organizers: Span<ContractAddress>);
     fn remove_organizer(ref self: TContractState, event_id: u256, organizer: ContractAddress);
     fn remove_organizers(
-        ref self: TContractState, event_id: u256, organizers: Span<ContractAddress>
+        ref self: TContractState, event_id: u256, organizers: Span<ContractAddress>,
     );
     fn purchase_ticket(ref self: TContractState, event_id: u256) -> ContractAddress;
     fn check_in(ref self: TContractState, event_id: u256, attendee: ContractAddress) -> bool;
@@ -78,14 +78,13 @@ pub struct EventMetadata {
     pub end_date: u64,
     pub total_tickets: u256,
     pub ticket_price: u256,
-    pub is_canceled: bool
+    pub is_canceled: bool,
 }
 
-#[derive(Drop, Copy)]
-pub enum TicketToken {
-    NONE,
+#[derive(Drop, Copy, Serde, Hash)]
+pub enum FeeToken {
     STRK,
     ETH,
     USDC,
-    USDT
+    USDT,
 }

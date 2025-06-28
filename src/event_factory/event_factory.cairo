@@ -3,31 +3,30 @@
 pub mod EventFactory {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
-    //////////////////////////////////////////////////////////////////////////*//
-    use core::{num::traits::zero::Zero, pedersen::PedersenTrait, hash::HashStateTrait};
-    use starknet::{
-        ContractAddress, class_hash::ClassHash, syscalls::deploy_syscall, SyscallResultTrait,
-        storage::{Map, StoragePointerReadAccess, StoragePointerWriteAccess, StoragePathEntry},
-        get_block_timestamp, get_caller_address, get_contract_address, get_tx_info,
-    };
-    use openzeppelin::{
-        introspection::src5::SRC5Component,
-        token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait},
-        access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE},
-        upgrades::{interface::IUpgradeable, UpgradeableComponent},
-    };
     use alexandria_data_structures::span_ext::SpanTraitExt;
-    use token_bound_accounts::{
-        interfaces::IRegistry::{
-            IRegistryDispatcher, IRegistryLibraryDispatcher, IRegistryDispatcherTrait
-        },
+    //////////////////////////////////////////////////////////////////////////*//
+    use core::{hash::HashStateTrait, num::traits::zero::Zero, pedersen::PedersenTrait};
+    use crowd_pass::errors::Errors;
+    use crowd_pass::interfaces::i_event_factory::{
+        EventData, EventMetadata, FeeToken, IEventFactory,
     };
-    use crowd_pass::{
-        errors::Errors,
-        interfaces::{
-            i_event_factory::{EventData, EventMetadata, IEventFactory},
-            i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait},
-        },
+    use crowd_pass::interfaces::i_ticket_721::{ITicket721Dispatcher, ITicket721DispatcherTrait};
+    use openzeppelin::access::accesscontrol::{AccessControlComponent, DEFAULT_ADMIN_ROLE};
+    use openzeppelin::introspection::src5::SRC5Component;
+    use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
+    use openzeppelin::upgrades::UpgradeableComponent;
+    use openzeppelin::upgrades::interface::IUpgradeable;
+    use starknet::class_hash::ClassHash;
+    use starknet::storage::{
+        Map, StoragePathEntry, StoragePointerReadAccess, StoragePointerWriteAccess,
+    };
+    use starknet::syscalls::deploy_syscall;
+    use starknet::{
+        ContractAddress, SyscallResultTrait, get_block_timestamp, get_caller_address,
+        get_contract_address, get_tx_info,
+    };
+    use token_bound_accounts::interfaces::IRegistry::{
+        IRegistryDispatcher, IRegistryDispatcherTrait, IRegistryLibraryDispatcher,
     };
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -80,7 +79,7 @@ pub mod EventFactory {
         id: u256,
         #[key]
         organizer: ContractAddress,
-        ticket_address: ContractAddress
+        ticket_address: ContractAddress,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -88,7 +87,7 @@ pub mod EventFactory {
         #[key]
         id: u256,
         start_date: u64,
-        end_date: u64
+        end_date: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -105,7 +104,7 @@ pub mod EventFactory {
         #[key]
         buyer: ContractAddress,
         tba_address: ContractAddress,
-        ticket_price: u256
+        ticket_price: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -113,7 +112,7 @@ pub mod EventFactory {
         #[key]
         event_id: u256,
         tba_acct: ContractAddress,
-        amount: u256
+        amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -122,7 +121,7 @@ pub mod EventFactory {
         event_id: u256,
         #[key]
         attendee: ContractAddress,
-        time: u64
+        time: u64,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -131,7 +130,7 @@ pub mod EventFactory {
         event_id: u256,
         #[key]
         organizer: ContractAddress,
-        amount: u256
+        amount: u256,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -141,7 +140,7 @@ pub mod EventFactory {
         #[key]
         attendee: ContractAddress,
         tba: ContractAddress,
-        amount: u256
+        amount: u256,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
@@ -157,8 +156,6 @@ pub mod EventFactory {
         upgradeable: UpgradeableComponent::Storage,
         event_count: u256,
         events: Map<u256, EventData>,
-        event_balance: Map<u256, u256>,
-        crowd_pass_balance: Map<u256, u256>,
         event_ticket_holder: Map<u256, Map<ContractAddress, bool>>,
         event_attendance: Map<u256, Map<ContractAddress, bool>>,
         event_organizer_count: Map<u256, u32>,
@@ -170,7 +167,7 @@ pub mod EventFactory {
     //                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////////////////*//
     #[constructor]
-    fn constructor(ref self: ContractState, default_admin: felt252,) {
+    fn constructor(ref self: ContractState, default_admin: felt252) {
         self.accesscontrol.initializer();
         self.accesscontrol._grant_role(DEFAULT_ADMIN_ROLE, default_admin.try_into().unwrap());
     }
@@ -193,7 +190,7 @@ pub mod EventFactory {
         ) -> EventData {
             let event = self
                 ._create_event(
-                    name, symbol, uri, start_date, end_date, total_tickets, ticket_price
+                    name, symbol, uri, start_date, end_date, total_tickets, ticket_price,
                 );
 
             event
@@ -293,7 +290,7 @@ pub mod EventFactory {
         }
 
         fn add_organizers(
-            ref self: ContractState, event_id: u256, organizers: Span<ContractAddress>
+            ref self: ContractState, event_id: u256, organizers: Span<ContractAddress>,
         ) {
             let main_organizer_role = self._gen_main_organizer_role(event_id);
             // assert caller has main organizer role
@@ -342,7 +339,7 @@ pub mod EventFactory {
         }
 
         fn remove_organizers(
-            ref self: ContractState, event_id: u256, organizers: Span<ContractAddress>
+            ref self: ContractState, event_id: u256, organizers: Span<ContractAddress>,
         ) {
             let main_organizer_role = self._gen_main_organizer_role(event_id);
             // assert caller has main organizer role
@@ -391,7 +388,7 @@ pub mod EventFactory {
             let ticket_owner = ticket.owner_of(ticket_id);
             assert(
                 self.event_attendance.entry(event_id).entry(ticket_owner).read(),
-                Errors::NOT_TICKET_OWNER
+                Errors::NOT_TICKET_OWNER,
             );
 
             let ticket_price = event_instance.ticket_price;
@@ -400,7 +397,7 @@ pub mod EventFactory {
             self.event_balance.entry(event_id).write(current_event_balance - ticket_price);
 
             let success = IERC20Dispatcher {
-                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
+                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap(),
             }
                 .transfer(tba_address, ticket_price);
 
@@ -437,7 +434,7 @@ pub mod EventFactory {
                 };
                 events.append(metadata);
                 i = i + 1;
-            };
+            }
 
             events.span()
         }
@@ -488,7 +485,7 @@ pub mod EventFactory {
                 }
 
                 self.event_organizers.entry(event_id).entry(index).read();
-            };
+            }
 
             organizers.span()
         }
@@ -505,13 +502,13 @@ pub mod EventFactory {
         }
 
         fn is_ticket_holder(
-            self: @ContractState, event_id: u256, attendee: ContractAddress
+            self: @ContractState, event_id: u256, attendee: ContractAddress,
         ) -> bool {
             self.event_ticket_holder.entry(event_id).entry(attendee).read()
         }
 
         fn is_event_attendee(
-            self: @ContractState, event_id: u256, attendee: ContractAddress
+            self: @ContractState, event_id: u256, attendee: ContractAddress,
         ) -> bool {
             self.event_attendance.entry(event_id).entry(attendee).read()
         }
@@ -635,7 +632,7 @@ pub mod EventFactory {
                 start_date: start_date,
                 end_date: end_date,
                 total_tickets: total_tickets,
-                ticket_price: ticket_price, 
+                ticket_price: ticket_price,
                 is_canceled: false,
             };
 
@@ -657,8 +654,8 @@ pub mod EventFactory {
             self
                 .emit(
                     EventCreated {
-                        id: event_count, organizer: organizer, ticket_address: ticket_address
-                    }
+                        id: event_count, organizer: organizer, ticket_address: ticket_address,
+                    },
                 );
 
             *event_snapshot
@@ -689,7 +686,7 @@ pub mod EventFactory {
             assert(ticket.balance_of(buyer) == 0, Errors::ALREADY_MINTED);
 
             let strk_token = IERC20Dispatcher {
-                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap()
+                contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap(),
             };
 
             // verify if caller has enough strk token for the ticket_price + 3% fee
@@ -699,17 +696,17 @@ pub mod EventFactory {
             let event_factory_address = get_contract_address();
             assert(
                 strk_token.allowance(buyer, event_factory_address) == ticket_price_plus_fee,
-                Errors::INSUFFICIENT_ALLOWANCE
+                Errors::INSUFFICIENT_ALLOWANCE,
             );
 
             assert(
-                strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE
+                strk_token.balance_of(buyer) >= ticket_price_plus_fee, Errors::INSUFFICIENT_BALANCE,
             );
 
             // transfer the ticket price to the contract
             assert(
                 strk_token.transfer_from(buyer, event_factory_address, ticket_price_plus_fee),
-                Errors::TRANSFER_FAILED
+                Errors::TRANSFER_FAILED,
             );
 
             let current_event_balance = self.event_balance.entry(event_id).read();
@@ -739,8 +736,8 @@ pub mod EventFactory {
                         ticket_id: ticket_id,
                         buyer: buyer,
                         tba_address: tba_address,
-                        ticket_price: ticket_price
-                    }
+                        ticket_price: ticket_price,
+                    },
                 );
 
             tba_address
@@ -770,8 +767,8 @@ pub mod EventFactory {
             self
                 .emit(
                     CheckedIn {
-                        event_id: event_id, attendee: attendee, time: get_block_timestamp()
-                    }
+                        event_id: event_id, attendee: attendee, time: get_block_timestamp(),
+                    },
                 );
         }
 
@@ -797,46 +794,46 @@ pub mod EventFactory {
             assert(
                 IERC20Dispatcher { contract_address: STRK_TOKEN_ADDRESS.try_into().unwrap() }
                     .transfer(organizer, event_balance_minus_fee),
-                Errors::TRANSFER_FAILED
+                Errors::TRANSFER_FAILED,
             );
 
             self
                 .emit(
                     PayoutCollected {
-                        event_id: event_id, organizer: organizer, amount: event_balance_minus_fee
-                    }
+                        event_id: event_id, organizer: organizer, amount: event_balance_minus_fee,
+                    },
                 );
         }
 
         fn _create_tba(
-            self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
+            self: @ContractState, ticket_address: ContractAddress, ticket_id: u256,
         ) -> ContractAddress {
             let tba_address = IRegistryLibraryDispatcher {
-                class_hash: TBA_REGISTRY_CLASS_HASH.try_into().unwrap()
+                class_hash: TBA_REGISTRY_CLASS_HASH.try_into().unwrap(),
             }
                 .create_account(
                     TBA_ACCOUNTV3_CLASS_HASH.try_into().unwrap(),
                     ticket_address,
                     ticket_id,
                     ticket_id.try_into().unwrap(),
-                    get_tx_info().chain_id
+                    get_tx_info().chain_id,
                 );
 
             tba_address
         }
 
         fn _get_tba(
-            self: @ContractState, ticket_address: ContractAddress, ticket_id: u256
+            self: @ContractState, ticket_address: ContractAddress, ticket_id: u256,
         ) -> ContractAddress {
             let tba_address = IRegistryDispatcher {
-                contract_address: TBA_REGISTRY_CONTRACT_ADDRESS.try_into().unwrap()
+                contract_address: TBA_REGISTRY_CONTRACT_ADDRESS.try_into().unwrap(),
             }
                 .get_account(
                     TBA_ACCOUNTV3_CLASS_HASH.try_into().unwrap(),
                     ticket_address,
                     ticket_id,
                     ticket_id.try_into().unwrap(),
-                    get_tx_info().chain_id
+                    get_tx_info().chain_id,
                 );
 
             tba_address
