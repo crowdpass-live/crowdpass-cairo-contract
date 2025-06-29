@@ -110,15 +110,14 @@ pub mod Ticket721 {
     fn constructor(
         ref self: ContractState, owner: ContractAddress, default_royalty_receiver: ContractAddress,
     ) {
-        self.ownable.initializer(owner);
-        self.erc721_enumerable.initializer();
         self.erc2981.initializer(default_royalty_receiver, 500);
+        self.ownable.initializer(owner);
     }
-
+    
     //*//////////////////////////////////////////////////////////////////////////
     //                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*//
-
+    
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
@@ -127,6 +126,7 @@ pub mod Ticket721 {
             self.ownable.assert_only_owner();
             self.initializable.initialize();
             self.erc721.initializer(name, symbol, uri);
+            self.erc721_enumerable.initializer();
         }
 
         #[external(v0)]
