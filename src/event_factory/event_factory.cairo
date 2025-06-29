@@ -6,9 +6,9 @@ pub mod EventFactory {
     //////////////////////////////////////////////////////////////////////////*//
 
     use alexandria_data_structures::span_ext::SpanTraitExt;
-    use core::hash::HashStateTrait;
     use core::num::traits::zero::Zero;
-    use core::pedersen::PedersenTrait;
+    use core::hash::{HashStateTrait, HashStateExTrait};
+    use core::poseidon::PoseidonTrait;
     use crowd_pass::errors::Errors;
     use crowd_pass::interfaces::i_event_factory::{
         EventData, EventMetadata, FeeToken, IEventFactory,
@@ -520,16 +520,16 @@ pub mod EventFactory {
         }
 
         fn gen_event_role(self: @ContractState, event_id: u256) -> felt252 {
-            PedersenTrait::new(0)
+            PoseidonTrait::new()
                 .update('CROWD_PASS_EVENT')
                 .update(event_id.try_into().unwrap())
                 .finalize()
         }
 
         fn gen_main_organizer_role(self: @ContractState, event_id: u256) -> felt252 {
-            PedersenTrait::new(0)
-                .update('MAIN_ORGANIZER')
-                .update(self._gen_event_role(event_id))
+            PoseidonTrait::new()
+                .update_with('MAIN_ORGANIZER')
+                .update_with(self._gen_event_role(event_id))
                 .finalize()
         }
     }
@@ -571,14 +571,14 @@ pub mod EventFactory {
     #[generate_trait]
     impl PrivateImpl of PrivateTrait {
         fn _gen_event_role(self: @ContractState, event_id: u256) -> felt252 {
-            PedersenTrait::new(0)
+            PoseidonTrait::new()
                 .update('CROWD_PASS_EVENT')
                 .update(event_id.try_into().unwrap())
                 .finalize()
         }
 
         fn _gen_main_organizer_role(self: @ContractState, event_id: u256) -> felt252 {
-            PedersenTrait::new(0)
+            PoseidonTrait::new()
                 .update('MAIN_ORGANIZER')
                 .update(self._gen_event_role(event_id))
                 .finalize()

@@ -1,7 +1,9 @@
 //*//////////////////////////////////////////////////////////////////////////
 //                                 IMPORTS
-use core::hash::HashStateTrait;
-use core::pedersen::PedersenTrait;
+//////////////////////////////////////////////////////////////////////////*//
+
+use core::hash::{HashStateTrait, HashStateExTrait};
+use core::poseidon::PoseidonTrait;
 use crowd_pass::interfaces::i_event_factory::{
     EventData, IEventFactoryDispatcher, IEventFactoryDispatcherTrait,
 };
@@ -11,7 +13,6 @@ use snforge_std::{
     ContractClassTrait, DeclareResultTrait, declare, start_cheat_caller_address,
     stop_cheat_caller_address,
 };
-//////////////////////////////////////////////////////////////////////////*//
 use starknet::{ContractAddress, get_block_timestamp, get_tx_info};
 use token_bound_accounts::interfaces::IRegistry::{
     IRegistryDispatcher, IRegistryDispatcherTrait, IRegistryLibraryDispatcher,
@@ -46,11 +47,11 @@ fn deploy_contract(name: ByteArray) -> ContractAddress {
 }
 
 fn gen_event_hash(event_id: u256) -> felt252 {
-    PedersenTrait::new(0).update('CROWD_PASS_EVENT').update(event_id.try_into().unwrap()).finalize()
+    PoseidonTrait::new().update('CROWD_PASS_EVENT').update(event_id.try_into().unwrap()).finalize()
 }
 
 fn gen_main_organizer_role(event_id: u256) -> felt252 {
-    PedersenTrait::new(0).update('MAIN_ORGANIZER').update(gen_event_hash(event_id)).finalize()
+    PoseidonTrait::new().update('MAIN_ORGANIZER').update(gen_event_hash(event_id)).finalize()
 }
 
 fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher) {
