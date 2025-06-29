@@ -35,7 +35,7 @@ const ADMIN: felt252 = 'admin';
 const ORGANIZER: felt252 = 'organizer';
 const ACCOUNT1: felt252 = 1234;
 
-const STRK_WHALE: felt252 = 0x03119564DDE82cc1319aEb21506f6bc9c3e3061BaAdb63ddFeC3410A69C11F86;
+const STRK_WHALE: felt252 = 0x04164013f90b05d67f026779bf96e9c401c96f3485b645a786166e6935fba116;
 
 //*//////////////////////////////////////////////////////////////////////////
 //                                   SETUP
@@ -86,7 +86,7 @@ fn create_event() -> (ContractAddress, EventData, ITicket721Dispatcher) {
 //                                   TESTS
 //////////////////////////////////////////////////////////////////////////*//
 #[test]
-#[fork("SEPOLIA_LATEST")]
+#[fork("MAINNET_LATEST")]
 fn test_create_event() {
     let (event_factory_address, event, ticket) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
@@ -105,7 +105,7 @@ fn test_create_event() {
 }
 
 #[test]
-#[fork("SEPOLIA_LATEST")]
+#[fork("MAINNET_LATEST")]
 #[should_panic(expected: 'Allowance is not enough')]
 fn should_panic_purchase_ticket_without_approval() {
     // prank organizer and create event
@@ -116,7 +116,7 @@ fn should_panic_purchase_ticket_without_approval() {
 }
 
 #[test]
-#[fork("SEPOLIA_LATEST")]
+#[fork("MAINNET_LATEST")]
 fn test_purchase_ticket() {
     // prank organizer and create event
     let (event_factory_address, event, ticket) = create_event();
@@ -168,7 +168,7 @@ fn test_purchase_ticket() {
 }
 
 #[test]
-#[fork("SEPOLIA_LATEST")]
+#[fork("MAINNET_LATEST")]
 fn test_cancel_event() {
     let (event_factory_address, _, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
@@ -181,7 +181,7 @@ fn test_cancel_event() {
 }
 
 #[test]
-#[fork("SEPOLIA_LATEST")]
+#[fork("MAINNET_LATEST")]
 #[should_panic(expected: 'Caller is missing role')]
 fn should_panic_not_main_organizer_cancel_event() {
     let (event_factory_address, _, _) = create_event();
@@ -195,7 +195,7 @@ fn should_panic_not_main_organizer_cancel_event() {
 }
 
 #[test]
-#[fork("SEPOLIA_LATEST")]
+#[fork("MAINNET_LATEST")]
 fn test_remove_organizer() {
     let (event_factory_address, _, _) = create_event();
     let event_factory = IEventFactoryDispatcher { contract_address: event_factory_address };
