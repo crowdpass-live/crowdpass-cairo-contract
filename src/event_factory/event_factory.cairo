@@ -3,8 +3,9 @@
 pub mod EventFactory {
     //*//////////////////////////////////////////////////////////////////////////
     //                                 IMPORTS
-    use alexandria_data_structures::span_ext::SpanTraitExt;
     //////////////////////////////////////////////////////////////////////////*//
+
+    use alexandria_data_structures::span_ext::SpanTraitExt;
     use core::{hash::HashStateTrait, num::traits::zero::Zero, pedersen::PedersenTrait};
     use crowd_pass::errors::Errors;
     use crowd_pass::interfaces::i_event_factory::{
@@ -36,13 +37,13 @@ pub mod EventFactory {
     const STRK_TOKEN_ADDRESS: felt252 =
         0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d;
     const TICKET_721_CLASS_HASH: felt252 =
-        0x01a6143d240fc4bfe546698326e56089d8345c790765fd190d495b3b19144074;
+        0x07d1d11ad2313835b8b6c4539682ee155f6696b55cc31bf02219a03beda87e8c;
     const TBA_REGISTRY_CLASS_HASH: felt252 =
         0x2cbf50931c7ec9029c5188985ea5fa8aedc728d352bde12ec889c212f0e8b3;
     const TBA_REGISTRY_CONTRACT_ADDRESS: felt252 =
-        0x41f87c7b00c3fb50cc7744f896f2d3438414be33912bd24f17318c9f48523a1;
+        0x755064b6e9a68d7c5b7dbed7bbdb23404603e08d67b44a0f97589addfd8ae27;
     const TBA_ACCOUNTV3_CLASS_HASH: felt252 =
-        0x29d2a1b11dd97289e18042502f11356133a2201dd19e716813fb01fbee9e9a4;
+        0xbe8863311f24317dff8af16deb1285ec5b035e57cf9beda545c341c339b925;
 
     //*//////////////////////////////////////////////////////////////////////////
     //                                COMPONENTS
