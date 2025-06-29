@@ -271,6 +271,12 @@ pub mod Ticket721 {
     impl ERC721EnumerableImpl =
         ERC721EnumerableComponent::ERC721EnumerableImpl<ContractState>;
     #[abi(embed_v0)]
+    impl ERC721MetadataCamelOnlyImpl =
+        ERC721Component::ERC721MetadataCamelOnlyImpl<ContractState>;
+    #[abi(embed_v0)]
+    impl SRC5Impl =
+        SRC5Component::SRC5Impl<ContractState>;
+    #[abi(embed_v0)]
     impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
     #[abi(embed_v0)]
     impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
