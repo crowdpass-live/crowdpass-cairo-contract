@@ -38,6 +38,12 @@ name = "SEPOLIA_LATEST"
 url = "https://starknet-sepolia.public.blastapi.io/rpc/v0_8"
 block_id.tag = "latest"
 
+[[tool.snforge.fork]]
+name = "MAINNET_LATEST"
+# url = "https://starknet-mainnet.public.blastapi.io/rpc/v0_8"
+url = "https://starknet-mainnet.blastapi.io/1db11f5e-51a8-453a-8a6f-36d6e5cf49cd/rpc/v0_8"
+block_id.tag = "latest"
+
 [profile.dev.cairo]                                        # Configure Cairo compiler
 unstable-add-statements-code-locations-debug-info = true   # Should be used if you want to use coverage
 unstable-add-statements-functions-debug-info = true        # Should be used if you want to use coverage/profiler
