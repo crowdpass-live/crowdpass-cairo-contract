@@ -162,6 +162,9 @@ pub mod EventFactory {
         event_organizer_count: Map<u256, u32>,
         event_organizers: Map<u256, Map<u32, ContractAddress>>,
         organizer_event_count: Map<ContractAddress, u256>,
+        fee_token_address: Map<FeeToken, Map<u256, ContractAddress>>,
+        event_balance: Map<u256, u256>,
+        crowd_pass_balance: Map<u256, u256>,
     }
 
     //*//////////////////////////////////////////////////////////////////////////
