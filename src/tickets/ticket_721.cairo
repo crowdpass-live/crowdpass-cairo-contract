@@ -113,11 +113,11 @@ pub mod Ticket721 {
         self.erc2981.initializer(default_royalty_receiver, 500);
         self.ownable.initializer(owner);
     }
-    
+
     //*//////////////////////////////////////////////////////////////////////////
     //                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////////////////*//
-    
+
     #[generate_trait]
     #[abi(per_item)]
     impl ExternalImpl of ExternalTrait {
@@ -236,7 +236,9 @@ pub mod Ticket721 {
         }
 
         #[external(v0)]
-        fn set_approval_for_all(ref self: ContractState, operator: ContractAddress, approved: bool) {
+        fn set_approval_for_all(
+            ref self: ContractState, operator: ContractAddress, approved: bool,
+        ) {
             self.erc721.set_approval_for_all(operator, approved);
         }
 
@@ -271,8 +273,7 @@ pub mod Ticket721 {
     impl ERC721MetadataCamelOnlyImpl =
         ERC721Component::ERC721MetadataCamelOnlyImpl<ContractState>;
     #[abi(embed_v0)]
-    impl SRC5Impl =
-        SRC5Component::SRC5Impl<ContractState>;
+    impl SRC5Impl = SRC5Component::SRC5Impl<ContractState>;
     #[abi(embed_v0)]
     impl PausableImpl = PausableComponent::PausableImpl<ContractState>;
     #[abi(embed_v0)]

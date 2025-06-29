@@ -6,7 +6,9 @@ pub mod EventFactory {
     //////////////////////////////////////////////////////////////////////////*//
 
     use alexandria_data_structures::span_ext::SpanTraitExt;
-    use core::{hash::HashStateTrait, num::traits::zero::Zero, pedersen::PedersenTrait};
+    use core::hash::HashStateTrait;
+    use core::num::traits::zero::Zero;
+    use core::pedersen::PedersenTrait;
     use crowd_pass::errors::Errors;
     use crowd_pass::interfaces::i_event_factory::{
         EventData, EventMetadata, FeeToken, IEventFactory,
