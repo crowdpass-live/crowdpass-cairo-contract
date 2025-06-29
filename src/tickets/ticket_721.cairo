@@ -157,7 +157,6 @@ pub mod Ticket721 {
 
         #[external(v0)]
         fn set_name(ref self: ContractState, new_name: ByteArray) {
-            self.pausable.assert_not_paused();
             self.ownable.assert_only_owner();
             self.erc721.ERC721_name.write(new_name.clone());
             self.emit(NameUpdated { name: new_name });
@@ -165,7 +164,6 @@ pub mod Ticket721 {
 
         #[external(v0)]
         fn set_symbol(ref self: ContractState, new_symbol: ByteArray) {
-            self.pausable.assert_not_paused();
             self.ownable.assert_only_owner();
             self.erc721.ERC721_symbol.write(new_symbol.clone());
             self.emit(SymbolUpdated { symbol: new_symbol });
@@ -173,7 +171,6 @@ pub mod Ticket721 {
 
         #[external(v0)]
         fn set_base_uri(ref self: ContractState, base_uri: ByteArray) {
-            self.pausable.assert_not_paused();
             self.ownable.assert_only_owner();
             self.erc721._set_base_uri(base_uri.clone());
             self.emit(URI { value: base_uri });
